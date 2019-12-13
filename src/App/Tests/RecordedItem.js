@@ -68,8 +68,10 @@ const RecordedItem = styled(({
       {editing ? (
         <React.Fragment>
           <UI.Input
+            width={typeof value !== `undefined` ? `50%` : `100%`}
             placeholder={`${eventType[0].toUpperCase() + eventType.slice(1)} Target Selector`}
             value={targetSelector}
+            autoFocus={editing === `targetSelector`}
             onBlur={event => {
               if (event.target.value !== targetSelector) {
                 updateRecorded({ recordedIndex, updates: { eventType, targetSelector: event.target.value } })
@@ -90,14 +92,14 @@ const RecordedItem = styled(({
                 event.stopPropagation()
               }
             }}
-            autoFocus={editing === `targetSelector`}
-            style={typeof value !== `undefined` ? { width: `50%` } : {}}
           />
 
           {typeof value !== `undefined` && (
             <UI.Input
+              width='50%'
               placeholder='Value'
               value={value}
+              autoFocus={editing === `value`}
               onBlur={event => {
                 if (event.target.value !== value) {
                   updateRecorded({ recordedIndex, updates: { eventType, targetSelector, value: event.target.value } })
@@ -118,8 +120,6 @@ const RecordedItem = styled(({
                   event.stopPropagation()
                 }
               }}
-              autoFocus={editing === `value`}
-              style={{ width: `50%` }}
             />
           )}
         </React.Fragment>

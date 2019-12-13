@@ -1,5 +1,5 @@
 import React from 'react'
-import styled from 'styled-components'
+import styled, { css } from 'styled-components'
 import { mix } from 'polished'
 
 /**
@@ -87,6 +87,7 @@ export const DateTimeInput = ({ name, value, offsetTime = 0, onChange, style, ..
  */
 const Input = styled(({
   className,
+  width,
   type = `text`,
   placeholder,
   value = ``,
@@ -142,6 +143,12 @@ const Input = styled(({
   position: relative;
   display: inline-block;
   vertical-align: middle;
+
+  ${({ width }) => typeof width !== `undefined` ? css`
+    &&& {
+      width: ${width};
+    }
+  ` : ``}
 
   > input {
     display: inline-block;

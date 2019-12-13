@@ -187,6 +187,7 @@ const Test = styled(({
   return (
     <section { ...props }>
       <UI.Input
+        width='60%'
         placeholder='Test Description'
         value={description || ``}
         onBlur={event => {
@@ -198,6 +199,7 @@ const Test = styled(({
       />
 
       <UI.Input
+        width='40%'
         placeholder='Snapshot Container Selector'
         value={snapshotSelector || `html`}
         onBlur={event => {
@@ -207,31 +209,35 @@ const Test = styled(({
         }}
       />
 
-      <header>Events to Record</header>
+      {recorded.length === 0 && (
+        <React.Fragment>
+          <header>Events to Record</header>
 
-      {actionableEventTypes.map((eventTypesGroup, eventTypesGroupIndex) => (
-        <EventSelection
-          key={`EventSelection_${testIndex}_${eventTypesGroupIndex}`}
-          style={(showingMore || (!eventTypes.length && eventTypesGroupIndex < 2) || hasOneSelected({ eventTypesGroup, eventTypes })) ? undefined : { display: `none` }}
-          eventTypesGroup={eventTypesGroup}
-          eventTypes={eventTypes}
-          testIndex={testIndex}
-          updateTest={updateTest}
-        />
-      ))}
+          {actionableEventTypes.map((eventTypesGroup, eventTypesGroupIndex) => (
+            <EventSelection
+              key={`EventSelection_${testIndex}_${eventTypesGroupIndex}`}
+              style={(showingMore || (!eventTypes.length && eventTypesGroupIndex < 2) || hasOneSelected({ eventTypesGroup, eventTypes })) ? undefined : { display: `none` }}
+              eventTypesGroup={eventTypesGroup}
+              eventTypes={eventTypes}
+              testIndex={testIndex}
+              updateTest={updateTest}
+            />
+          ))}
 
-      {showingMore ? (
-        <div>
-          <span onClick={() => setShowingMore(false)}>
-            Show Less...
-          </span>
-        </div>
-      ) : (
-        <div>
-          <span onClick={() => setShowingMore(true)}>
-            Show More...
-          </span>
-        </div>
+          {showingMore ? (
+            <div>
+              <span onClick={() => setShowingMore(false)}>
+                Show Less...
+              </span>
+            </div>
+          ) : (
+            <div>
+              <span onClick={() => setShowingMore(true)}>
+                Show More...
+              </span>
+            </div>
+          )}
+        </React.Fragment>
       )}
 
       {isRecording && (
