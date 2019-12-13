@@ -53,6 +53,52 @@ const main = () => {
 window.requestAnimationFrame(main)
 
 /**
+ * Gets the simplest element selector for some `element`.
+ * @param {element} element
+ * @param {array} attributes
+ * @returns {string}
+ */
+const getSimplestElementSelector = (element, attributes = [`name`, `placeholder`]) => {
+  if (element.id) {
+    return `#${element.id}`
+  }
+
+  let elementSelector = ``
+
+  for (let attribute of attributes) {
+    if (element.getAttribute(attribute)) {
+      elementSelector = `[${attribute}='${element.getAttribute(attribute)}']`
+
+      if (element.parentNode.querySelector(elementSelector) !== element) {
+        elementSelector = element.nodeName.toLowerCase() + elementSelector
+      }
+
+      if (element.parentNode.querySelector(elementSelector) === element) {
+        return elementSelector
+      }
+    }
+  }
+
+  elementSelector = element.nodeName.toLowerCase()
+
+  if (element.parentNode.querySelector(elementSelector) === element) {
+    return elementSelector
+  }
+
+  let i = 0
+  let n = 1
+
+  while (element.parentNode.childNodes[i] && element.parentNode.childNodes[i] !== element) {
+    if (element.parentNode.childNodes[i] instanceof Element) {
+      n++
+    }
+    i++
+  }
+
+  return `${elementSelector}:nth-child(${n})`
+}
+
+/**
  * Gets the path to some element as a selector.
  * @param {element} element
  * @returns {string}
@@ -60,22 +106,10 @@ window.requestAnimationFrame(main)
 const getTargetSelector = (element) => {
   const snapshotContainer = document.querySelector(snapshotSelector)
   const targetSelector = []
-  let i = 0
-  let n = 1
 
   while (element.parentNode !== null) {
-    i = 0
-    n = 1
+    targetSelector.unshift(getSimplestElementSelector(element))
 
-    while (element.parentNode.childNodes[i] && element.parentNode.childNodes[i] !== element) {
-      if (element.parentNode.childNodes[i] instanceof Element) {
-        n++
-      }
-
-      i++
-    }
-
-    targetSelector.unshift(`${element.nodeName.toLowerCase()}:nth-child(${n})`)
     element = element.parentNode
 
     if (element === snapshotContainer) {
@@ -95,9 +129,12 @@ const specialEventListeners = {
     const eventType = `input`
     const targetSelector = getTargetSelector(event.target)
     const value = event.target.value || ``
+    const id = event.target.id || undefined
+    const name = event.target.getAttribute(`name`) || undefined
+    const placeholder = event.target.getAttribute(`placeholder`) || undefined
 
     if (targetSelector) {
-      chrome.runtime.sendMessage({ command: `pushRecordedItem`, recordedItem: { eventType, targetSelector, value } })
+      chrome.runtime.sendMessage({ command: `pushRecordedItem`, recordedItem: { eventType, targetSelector, value, id, name, placeholder } })
     }
   },
 
@@ -105,9 +142,12 @@ const specialEventListeners = {
     const eventType = `change`
     const targetSelector = getTargetSelector(event.target)
     const value = event.target.value || ``
+    const id = event.target.id || undefined
+    const name = event.target.getAttribute(`name`) || undefined
+    const placeholder = event.target.getAttribute(`placeholder`) || undefined
 
     if (targetSelector) {
-      chrome.runtime.sendMessage({ command: `pushRecordedItem`, recordedItem: { eventType, targetSelector, value } })
+      chrome.runtime.sendMessage({ command: `pushRecordedItem`, recordedItem: { eventType, targetSelector, value, id, name, placeholder } })
     }
   }
 }

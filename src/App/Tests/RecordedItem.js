@@ -125,7 +125,7 @@ const RecordedItem = styled(({
         </React.Fragment>
       ) : (
         <span>
-          {eventType[0].toUpperCase() + eventType.slice(1)} <pre onClick={() => setEditing(`targetSelector`)}>&lt;{targetSelector.split(` > `).pop().split(`:`).shift()}&gt;</pre>
+          {eventType[0].toUpperCase() + eventType.slice(1)} <pre onClick={() => setEditing(`targetSelector`)}>{targetSelector.split(` > `).pop()}</pre>
 
           {typeof value !== `undefined` && (
             <React.Fragment>
