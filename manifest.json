@@ -1,0 +1,42 @@
+{
+  "name": "TestFront.io DevTools",
+  "version": "1.0",
+  "manifest_version": 2,
+  "minimum_chrome_version": "45.0",
+  "description": "Automatic tests for your frontend as you build it.",
+
+  "permissions": [
+    "tabs",
+    "storage",
+    "unlimitedStorage"
+  ],
+
+  "icons": {
+    "16": "public/images/check-16.png",
+    "32": "public/images/check-32.png",
+    "48": "public/images/check-48.png",
+    "128": "public/images/check-128.png"
+  },
+
+  "devtools_page": "devtools.html",
+
+  "content_scripts": [{
+    "matches": ["<all_urls>"],
+    "js": ["content.js"],
+    "run_at": "document_start"
+  }],
+
+  "background": {
+    "scripts": ["background.js"]
+  },
+
+  "page_action": {
+    "default_title": "TestFront",
+    "default_icon": {
+      "16": "public/images/check-16.png",
+      "32": "public/images/check-32.png",
+      "48": "public/images/check-48.png",
+      "128": "public/images/check-128.png"
+    }
+  }
+}
