@@ -2,6 +2,7 @@ import React from 'react'
 import styled from 'styled-components'
 import octicons from 'octicons'
 import * as UI from '../../UI'
+import * as utilities from '../utilities'
 
 const RecordedItem = styled(({
   html,
@@ -30,7 +31,7 @@ const RecordedItem = styled(({
 
   const deleteConfirmation = (
     <aside style={{ opacity: 1 }}>
-      <div>{`Delete ${typeof html !== `undefined` ? `snapshot` : `event`}?`}</div>
+      <div>{`Delete ${typeof html !== `undefined` ? `snapshot` : `event`} from sequence?`}</div>
 
       <UI.Button backgroundColor='gray' onClick={() => {
         setIsDeleting(false)
@@ -54,6 +55,10 @@ const RecordedItem = styled(({
       <span dangerouslySetInnerHTML={{ __html: octicons[passed === true ? `check` : (passed === false ? `x` : `device-camera`)].toSVG({ width: 15, height: 15 }) }} />
 
       <span>Snapshot</span>
+
+      {error && error.html && (
+        <div><pre dangerouslySetInnerHTML={{ __html: utilities.getPrettyHtml(utilities.getDiffs(html, error.html)) }} /></div>
+      )}
 
       {isDeleting ? deleteConfirmation : (
         <aside>
@@ -124,17 +129,25 @@ const RecordedItem = styled(({
           )}
         </React.Fragment>
       ) : (
-        <span>
-          {eventType[0].toUpperCase() + eventType.slice(1)} <pre onClick={() => setEditing(`targetSelector`)}>{targetSelector.split(` > `).pop()}</pre>
+        <React.Fragment>
+          <span>
+            {eventType[0].toUpperCase() + eventType.slice(1)} <pre onClick={() => setEditing(`targetSelector`)}>{targetSelector.split(` > `).pop()}</pre>
 
-          {typeof value !== `undefined` && (
-            <React.Fragment>
-              {` value to '`}
-              <span onClick={() => setEditing(`value`)}>{value}</span>
-              {`'`}
-            </React.Fragment>
+            {typeof value !== `undefined` && (
+              <React.Fragment>
+                {` value to '`}
+                <span onClick={() => setEditing(`value`)}>{value}</span>
+                {`'`}
+              </React.Fragment>
+            )}
+          </span>
+
+          {error && error.message && (
+            <div>
+              <span>{error.message}</span>
+            </div>
           )}
-        </span>
+        </React.Fragment>
       )}
 
       {isDeleting ? deleteConfirmation : (
@@ -157,7 +170,7 @@ const RecordedItem = styled(({
 })`
   position: relative;
   display: block;
-  height: 30px;
+  min-height: 30px;
   padding: 5px 80px 5px 50px;
   font-size: 15px;
   line-height: 20px;
@@ -182,6 +195,41 @@ const RecordedItem = styled(({
       &:hover {
         background-color: rgba(0, 0, 0, 0.25);
         color: rgba(255, 255, 255, 0.9);
+      }
+    }
+  }
+
+  > div {
+    > span {
+      display: inline-block;
+      margin: 2.5px 0 5px;
+      padding: 2.5px 5px;
+      background-color: rgba(0, 0, 0, 0.25);
+      color: ${({ theme }) => theme.colors.red || `rgba(255, 63, 63, 0.9)`};
+      text-transform: uppercase;
+      line-height: 1;
+    }
+
+    > pre {
+      display: inline-block;
+      margin: 5px 0;
+      padding: 5px;
+      white-space: pre-wrap;
+      background-color: rgba(0, 0, 0, 0.25);
+      color: rgba(255, 255, 255, 0.9);
+
+      del {
+        padding: 2.5px 0;
+        background-color: ${({ theme }) => theme.colors.red || `red`};
+        color: white;
+        text-decoration-color: rgba(255, 255, 255, 0.75);
+      }
+
+      ins {
+        padding: 2.5px 0;
+        background-color: ${({ theme }) => theme.colors.green || `green`};
+        color: white;
+        text-decoration: none;
       }
     }
   }

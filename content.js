@@ -339,7 +339,7 @@ const test = () => {
       recordedIndex++
     } else if (timeouts.simulateEvent < 0) {
       timeouts.simulateEvent = setTimeout(() => {
-        chrome.runtime.sendMessage({ command: `testItemFailed`, recordedIndex })
+        chrome.runtime.sendMessage({ command: `testItemFailed`, recordedIndex, error: { message: `Target not found` } })
         timeouts.simulateEvent = -1
         stopTest()
       }, timeLimits.simulateEvent)

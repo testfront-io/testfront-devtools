@@ -471,7 +471,7 @@ const Test = styled(({
 
         > span {
           display: inline-block;
-          vertical-align: middle;
+          vertical-align: top;
           cursor: pointer;
           font-size: 18px;
           line-height: 30px;
@@ -512,7 +512,7 @@ const Test = styled(({
         > div {
           position: relative;
           display: block;
-          height: 30px;
+          min-height: 30px;
           font-size: 15px;
           line-height: 20px;
           padding: 5px 80px 5px 50px;
