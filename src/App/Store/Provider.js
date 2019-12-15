@@ -3,7 +3,6 @@ import React from 'react'
 import * as API from '../../API'
 import Context from './Context'
 import tab from '../../tab'
-//import * as utilities from '../utilities'
 
 /**
  * Promisified versions of `chrome.storage.local.get` and `set`.
@@ -41,7 +40,7 @@ const copyObjectWithValue = (object, value) => {
  * @param {object} message
  */
 const pushRecordedItem = ({ store, message }) => {
-  const { routeIndex, testIndex } = store
+  const { routeIndex, testIndex } = store.recording
 
   store.setData(data => {
     const routes = [ ...data.routes ]
@@ -84,7 +83,7 @@ const stopRecording = ({ store }) => {
  * @param {object} message
  */
 const testItemPassed = ({ store, message }) => {
-  const { routeIndex, testIndex } = store
+  const { routeIndex, testIndex } = store.testing
   const { recordedIndex } = message
 
   store.setData(data => {
@@ -121,7 +120,7 @@ const testItemPassed = ({ store, message }) => {
  * @param {object} message
  */
 const testItemFailed = ({ store, message }) => {
-  const { routeIndex, testIndex } = store
+  const { routeIndex, testIndex } = store.testing
   const { recordedIndex, error } = message
 
   store.setData(data => {
@@ -158,7 +157,7 @@ const testItemFailed = ({ store, message }) => {
  * @param {object} store
  * @param {object} message
  */
-const stopTest = ({ store, message }) => {
+const stopTesting = ({ store, message }) => {
   store.set(store => ({ isTesting: false }))
 }
 
@@ -186,8 +185,8 @@ const initialize = (store) => {
         testItemFailed({ store: ref.store, message })
         break
 
-      case `stopTest`:
-        stopTest({ store: ref.store, message })
+      case `stopTesting`:
+        stopTesting({ store: ref.store, message })
         break
 
       case `consoleLog`:
@@ -214,16 +213,28 @@ const Provider = ({ children }) => {
     source: `local`,
     serverBaseURL: API.client.defaults.baseURL,
 
-    routeIndex: 0,
-    testIndex: 0,
-    isRecording: false,
-    isTesting: false,
+    editing: {
+      routeIndex: -1,
+    },
+
+    recording: {
+      routeIndex: -1,
+      testIndex: -1
+    },
+
+    testing: {
+      routeIndex: -1,
+      testIndex: -1,
+      allRoutes: false,
+      allTests: false
+    },
 
     data: {
       routes: [{
         path: `/`, // Matched via react-router's `matchPath` function.
         exact: false,
         strict: false,
+        skip: false,
         tests: [/*{
           description: ``,
           snapshotSelector: ``,

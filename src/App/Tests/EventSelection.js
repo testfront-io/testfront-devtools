@@ -1,7 +1,7 @@
 import React from 'react'
 import styled from 'styled-components'
 
-const EventSelection = styled(({ eventTypesGroup, eventTypes, testIndex, updateTest, ...props }) => {
+const EventSelection = styled(({ eventTypesGroup, eventTypes, index, updateTest, ...props }) => {
   const checkedNone = !eventTypesGroup[1].filter(eventType => eventTypes.includes(eventType)).length
 
   return (
@@ -15,14 +15,14 @@ const EventSelection = styled(({ eventTypesGroup, eventTypes, testIndex, updateT
           onChange={event => {
             if (checkedNone) {
               updateTest({
-                testIndex,
+                index,
                 updates: {
                   eventTypes: eventTypes.concat(eventTypesGroup[1])
                 }
               })
             } else {
               updateTest({
-                testIndex,
+                index,
                 updates: {
                   eventTypes: eventTypes.filter(
                     eventType => !eventTypesGroup[1].includes(eventType)
@@ -53,7 +53,7 @@ const EventSelection = styled(({ eventTypesGroup, eventTypes, testIndex, updateT
                 eventTypes.splice(eventTypeIndex, 1)
               }
 
-              updateTest({ testIndex, updates: { eventTypes } })
+              updateTest({ index, updates: { eventTypes } })
             }}
           />
         </label>

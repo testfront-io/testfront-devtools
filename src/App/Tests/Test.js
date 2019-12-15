@@ -8,9 +8,9 @@ import RecordedItem from './RecordedItem'
 import actionableEventTypes from './actionableEventTypes'
 import tab from '../../tab'
 
-export const hasOneSelected = ({ eventTypesGroup, eventTypes }) => {
+export const hasOneSelected = ({ eventTypesGroup, test }) => {
   for (let eventType of eventTypesGroup[1]) {
-    if (eventTypes.includes(eventType)) {
+    if (test.eventTypes.includes(eventType)) {
       return true
     }
   }
@@ -28,31 +28,16 @@ export const Summary = styled(({ color, ...props }) => (
   }
 `
 
-export const Rotate = styled((props) => (
-  <span { ...props } />
-))`
-  animation: rotate 2s linear infinite;
-
-  @keyframes rotate {
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-`
-
 const Test = styled(({
-  description,
-  snapshotSelector,
-  eventTypes,
-  recorded,
+  recording,
+  testing,
   set,
   setData,
   routeIndex,
-  testIndex,
+  index,
+  test,
   updateTest,
   deleteTest,
-  isRecording,
-  isTesting,
   autoFocus,
   ...props
 }) => {
@@ -63,28 +48,63 @@ const Test = styled(({
 
   const startRecording = () => {
     setIsOpen(true)
-    set(store => ({ testIndex, isRecording: true, isTesting: false }))
-    tab.sendMessage({ command: `startRecording`, snapshotSelector, eventTypes })
+
+    set(store => ({
+      recording: {
+        routeIndex,
+        testIndex: index
+      },
+
+      testing: {
+        routeIndex: -1,
+        testIndex: -1,
+        allRoutes: false,
+        allTests: false
+      }
+    }))
+
+    // TODO tab.sendMessage({ command: `startRecording`, test })
   }
 
   const stopRecording = () => {
+    set(store => ({
+      recording: {
+        routeIndex: -1,
+        testIndex: -1
+      }
+    }))
+
     tab.sendMessage({ command: `stopRecording` })
   }
 
-  const startTest = () => {
-    set(store => ({ testIndex, isRecording: false, isTesting: true }))
+  const startTesting = () => {
+    setIsOpen(true)
+
+    set(store => ({
+      recording: {
+        routeIndex: -1,
+        testIndex: -1
+      },
+
+      testing: {
+        routeIndex,
+        testIndex: index,
+        allRoutes: false,
+        allTests: false
+      }
+    }))
 
     setData(data => {
       const routes = [ ...data.routes ]
       const tests = [ ...routes[routeIndex].tests ]
-      const recorded = tests[testIndex].recorded.map(recordedItem => ({
+      const recorded = tests[index].recorded.map(recordedItem => ({
         ...recordedItem,
         passed: undefined,
         error: undefined
       }))
 
-      tests[testIndex] = {
-        ...tests[testIndex],
+      tests[index] = {
+        ...tests[index],
         recorded
       }
 
@@ -96,41 +116,32 @@ const Test = styled(({
       return { routes }
     })
 
-    setIsOpen(true)
-    setTimeout(() => tab.sendMessage({ command: `startTest`, snapshotSelector, recorded }), 10) // TODO find a better way?
+    // TODO setTimeout(() => tab.sendMessage({ command: `startTesting`, test }), 10) // TODO find a better way?
   }
 
-  const stopTest = () => {
-    tab.sendMessage({ command: `stopTest` })
-  }
-
-  const updateRecorded = ({ recordedIndex, updates }) => {
-    const recordedUpdates = [ ...recorded ]
-
-    recordedUpdates[recordedIndex] = {
-      ...recordedUpdates[recordedIndex],
-      ...updates
-    }
-
-    updateTest({
-      testIndex,
-      updates: {
-        recorded: recordedUpdates
+  const stopTesting = () => {
+    set(store => ({
+      testing: {
+        routeIndex: -1,
+        testIndex: -1,
+        allRoutes: false,
+        allTests: false
       }
-    })
+    }))
+
+    tab.sendMessage({ command: `stopTesting` })
   }
 
-  const deleteRecorded = ({ recordedIndex }) => {
-    const recordedUpdates = [ ...recorded ]
+  const updateRecordedItem = ({ index, updates }) => {
+    const recorded = [ ...test.recorded ]
+    recorded[index] = { ...recorded[index], ...updates }
+    updateTest({ index, updates: { recorded } })
+  }
 
-    recordedUpdates.splice(recordedIndex, 1)
-
-    updateTest({
-      testIndex,
-      updates: {
-        recorded: recordedUpdates
-      }
-    })
+  const deleteRecordedItem = ({ index }) => {
+    const recorded = [ ...test.recorded ]
+    recorded.splice(index, 1)
+    updateTest({ index, updates: { recorded } })
   }
 
   let testItemIndex = 0
@@ -139,7 +150,8 @@ const Test = styled(({
   let snapshotCount = 0
   let eventCount = 0
 
-  const getItemProps = ({ recordedItem, recordedIndex }) => {
+  const isTesting = testing.testIndex === index
+  const getRecordedItemColor = ({ recordedItem, index }) => {
     let color = `inherit`
 
     if (recordedItem.passed === true) {
@@ -150,7 +162,7 @@ const Test = styled(({
       failedCount++
       testItemIndex++
       color = `red`
-    } else if (isTesting && testItemIndex === recordedIndex) {
+    } else if (isTesting && testItemIndex === index) {
       color = `yellow`
     }
 
@@ -160,21 +172,19 @@ const Test = styled(({
       eventCount++
     }
 
-    return {
-      ...recordedItem,
-      recordedIndex,
-      color
-    }
+    return color
   }
 
   const recordedItems = (
     <div>
-      {recorded.length ? recorded.map((recordedItem, recordedIndex) => (
+      {test.recorded.length ? test.recorded.map((recordedItem, index) => (
         <RecordedItem
-          key={`recordedItem_${recordedIndex}`}
-          updateRecorded={updateRecorded}
-          deleteRecorded={deleteRecorded}
-          { ...getItemProps({ recordedItem, recordedIndex }) }
+          key={`recordedItem_${index}`}
+          index={index}
+          recordedItem={recordedItem}
+          updateRecordedItem={updateRecordedItem}
+          deleteRecordedItem={deleteRecordedItem}
+          color={getRecordedItemColor({ recordedItem, index })}
         />
       )) : (
         <div style={{ backgroundColor: `rgba(127, 127, 127, 0.1)` }}>
@@ -189,37 +199,52 @@ const Test = styled(({
       <UI.Input
         width='60%'
         placeholder='Test Description'
-        value={description || ``}
+        value={test.description || ``}
         onBlur={event => {
-          if (event.target.value !== description) {
-            updateTest({ testIndex, updates: { description: event.target.value } })
+          if (event.target.value !== test.description) {
+            updateTest({ index, updates: { description: event.target.value } })
           }
         }}
         autoFocus={autoFocus}
-      />
+      >
+        <aside>
+          <label>
+            <input
+              type='checkbox'
+              checked={test.skip}
+              onChange={event => {
+                const skip = event.target.checked
+                updateTest({ index, updates: { skip } })
+              }}
+            />
+
+            <span>Skip</span>
+          </label>
+        </aside>
+      </UI.Input>
 
       <UI.Input
         width='40%'
         placeholder='Snapshot Container Selector'
-        value={snapshotSelector || `html`}
+        value={test.snapshotSelector || `html`}
         onBlur={event => {
-          if (event.target.value !== snapshotSelector) {
-            updateTest({ testIndex, updates: { snapshotSelector: event.target.value } })
+          if (event.target.value !== test.snapshotSelector) {
+            updateTest({ index, updates: { snapshotSelector: event.target.value } })
           }
         }}
       />
 
-      {recorded.length === 0 && (
+      {test.recorded.length === 0 && (
         <React.Fragment>
           <header>Events to Record</header>
 
           {actionableEventTypes.map((eventTypesGroup, eventTypesGroupIndex) => (
             <EventSelection
-              key={`EventSelection_${testIndex}_${eventTypesGroupIndex}`}
-              style={(showingMore || (!eventTypes.length && eventTypesGroupIndex < 2) || hasOneSelected({ eventTypesGroup, eventTypes })) ? undefined : { display: `none` }}
+              key={`EventSelection_${index}_${eventTypesGroupIndex}`}
+              style={(showingMore || (!test.eventTypes.length && eventTypesGroupIndex < 2) || hasOneSelected({ eventTypesGroup, test })) ? undefined : { display: `none` }}
               eventTypesGroup={eventTypesGroup}
-              eventTypes={eventTypes}
-              testIndex={testIndex}
+              eventTypes={test.eventTypes}
+              index={index}
               updateTest={updateTest}
             />
           ))}
@@ -240,7 +265,7 @@ const Test = styled(({
         </React.Fragment>
       )}
 
-      {isRecording && (
+      {recording.testIndex === index && (
         <footer>
           <details open={isOpen} onToggle={({ target }) => setIsOpen(target.open)}>
             <Summary color='red'>
@@ -259,20 +284,18 @@ const Test = styled(({
           </details>
 
           <aside>
-            <UI.Button backgroundColor='red' onClick={() => {
-              stopRecording()
-            }}>
+            <UI.Button backgroundColor='red' onClick={() => stopRecording()}>
               Stop
             </UI.Button>
           </aside>
         </footer>
       )}
 
-      {isTesting && (
+      {testing.testIndex === index && (
         <footer>
           <details open={isOpen} onToggle={({ target }) => setIsOpen(target.open)}>
             <Summary color='yellow'>
-              <Rotate
+              <UI.Rotate
                 style={{ padding: 4 }}
                 dangerouslySetInnerHTML={{
                   __html: octicons[`sync`].toSVG({ width: 22, height: 22 })
@@ -288,23 +311,21 @@ const Test = styled(({
           </details>
 
           <aside>
-            <UI.Button backgroundColor='red' onClick={() => {
-              stopTest()
-            }}>
+            <UI.Button backgroundColor='red' onClick={() => stopTesting()}>
               Stop
             </UI.Button>
           </aside>
         </footer>
       )}
 
-      {!isRecording && !isTesting && (
+      {recording.testIndex !== index && testing.testIndex !== index && (
         <footer>
           <details open={isOpen} onToggle={({ target }) => setIsOpen(target.open)}>
-            <Summary color={(recorded.length > 0 && passedCount === recorded.length) ? `green` : (failedCount > 0 ? `red` : `inherit`)}>
+            <Summary color={test.allPassed ? `green` : (test.oneFailed ? `red` : `inherit`)}>
               <span
                 style={{ padding: 4 }}
                 dangerouslySetInnerHTML={{
-                  __html: octicons[(recorded.length > 0 && passedCount === recorded.length) ? `check` : (failedCount > 0 ? `x` : (isOpen ? `chevron-down` : `chevron-right`))].toSVG({ width: 22, height: 22 })
+                  __html: octicons[(test.recorded.length > 0 && passedCount === test.recorded.length) ? `check` : (failedCount > 0 ? `x` : (isOpen ? `chevron-down` : `chevron-right`))].toSVG({ width: 22, height: 22 })
                 }}
               />
 
@@ -316,25 +337,19 @@ const Test = styled(({
             {recordedItems}
           </details>
 
-          {recorded.length > 0 ? (
+          {test.recorded.length > 0 ? (
             <aside>
-              <UI.Button backgroundColor='red' onClick={() => {
-                setIsErasing(true)
-              }}>
+              <UI.Button backgroundColor='gray' onClick={() => setIsErasing(true)}>
                 Erase
               </UI.Button>
 
-              <UI.Button backgroundColor='green' onClick={() => {
-                startTest()
-              }}>
+              <UI.Button backgroundColor='green' onClick={() => startTesting()}>
                 Run Test
               </UI.Button>
             </aside>
           ) : (
             <aside>
-              <UI.Button backgroundColor='green' onClick={() => {
-                startRecording()
-              }}>
+              <UI.Button backgroundColor='green' onClick={() => startRecording()}>
                 Record
               </UI.Button>
             </aside>
@@ -343,8 +358,12 @@ const Test = styled(({
       )}
 
       <UI.Button backgroundColor='red' onClick={() => {
-        if (isRecording) {
+        if (recording.testIndex === index) {
           stopRecording()
+        }
+
+        if (testing.testIndex === index) {
+          stopTesting()
         }
 
         setIsDeleting(true)
@@ -357,16 +376,14 @@ const Test = styled(({
           <div>
             <div>Delete this test?</div>
 
-            <UI.Button backgroundColor='gray' onClick={() => {
-              setIsDeleting(false)
-            }}>
+            <UI.Button backgroundColor='gray' onClick={() => setIsDeleting(false)}>
               <span dangerouslySetInnerHTML={{ __html: octicons[`chevron-left`].toSVG({ width: 15, height: 15 }) }} />
               <span>Cancel</span>
             </UI.Button>
 
             <UI.Button backgroundColor='red' onClick={() => {
               setIsDeleting(false)
-              deleteTest({ testIndex })
+              deleteTest({ index })
             }}>
               <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
               <span>Delete</span>
@@ -380,16 +397,14 @@ const Test = styled(({
           <div>
             <div>Erase recorded snapshots and events?</div>
 
-            <UI.Button backgroundColor='gray' onClick={() => {
-              setIsErasing(false)
-            }}>
+            <UI.Button backgroundColor='gray' onClick={() => setIsErasing(false)}>
               <span dangerouslySetInnerHTML={{ __html: octicons[`chevron-left`].toSVG({ width: 15, height: 15 }) }} />
               <span>Cancel</span>
             </UI.Button>
 
             <UI.Button backgroundColor='red' onClick={() => {
               setIsErasing(false)
-              updateTest({ testIndex, updates: { recorded: [] } })
+              updateTest({ index, updates: { recorded: [] } })
             }}>
               <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
               <span>Erase</span>
@@ -401,11 +416,46 @@ const Test = styled(({
   )
 })`
   position: relative;
-  margin-bottom: 45px;
+  margin-bottom: 30px;
   box-shadow: 0 -3px 6px 6px rgba(0, 0, 0, 0.05);
 
   &&& > ${UI.Input} {
     margin-bottom: 0;
+
+    > aside {
+      position: absolute;
+      top: 0;
+      left: 125px;
+      text-transform: uppercase;
+      white-space: nowrap;
+
+      > label {
+        display: inline-block;
+        vertical-align: top;
+        margin-right: 12px;
+        font-size: 11px;
+        line-height: 1;
+        cursor: pointer;
+
+        > input {
+          margin: 1px 3px;
+
+          &:checked + span {
+            color: rgba(255, 255, 255, 0.9);
+          }
+        }
+
+        > span {
+          color: gray;
+        }
+
+        &:hover {
+          > span {
+            color: inherit;
+          }
+        }
+      }
+    }
   }
 
   > header {

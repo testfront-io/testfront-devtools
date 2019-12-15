@@ -12,6 +12,7 @@ import Icon from './Icon'
 import Input from './Input'
 import List from './List'
 import Modal from './Modal'
+import Rotate from './Rotate'
 import Select from './Select'
 import Spinner from './Spinner'
 import Table from './Table'
@@ -34,6 +35,7 @@ export {
   Input,
   List,
   Modal,
+  Rotate,
   Select,
   Spinner,
   Table,

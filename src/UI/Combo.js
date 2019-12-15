@@ -31,6 +31,32 @@ const Combo = styled(({
     children = children(state)
   }
 
+  const options = []
+  const otherChildren = []
+
+  React.Children.forEach(children, child => {
+    if (child.type === `option`) {
+      options.push(React.cloneElement(child, {
+        onMouseDown: () => {
+          const { value } = child.props
+          const nextState = { value }
+
+          if (typeof child.props.children === `string`) {
+            nextState.inputValue = child.props.children
+          }
+
+          setState(nextState)
+
+          if (onChange) {
+            onChange({ target: { name, value } }, setState)
+          }
+        }
+      }))
+    } else {
+      otherChildren.push(child)
+    }
+  })
+
   return (
     <span className={className} data-placeholder={placeholder}>
       <input
@@ -49,26 +75,13 @@ const Combo = styled(({
       )}
 
       <ul>
-        {React.Children.map(children, option => React.cloneElement(option, {
-          onMouseDown: () => {
-            const { value } = option.props
-            const nextState = { value }
-
-            if (typeof option.props.children === `string`) {
-              nextState.inputValue = option.props.children
-            }
-
-            setState(nextState)
-
-            if (onChange) {
-              onChange({ target: { name, value } }, setState)
-            }
-          }
-        }))}
+        {options}
       </ul>
 
       <span>{placeholder}</span>
       <b>▼</b>
+
+      {otherChildren}
     </span>
   )
 })`

@@ -1,12 +1,12 @@
 import React from 'react'
 import { HashRouter, Switch, Route } from 'react-router-dom'
-import * as Routes from './Routes'
+import * as Layouts from './Layouts'
 
 const App = () => (
   <HashRouter>
     <Switch>
       <Route exact path='/'>
-        <Routes.Home />
+        <Layouts.Routes />
       </Route>
     </Switch>
   </HashRouter>

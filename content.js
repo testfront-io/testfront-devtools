@@ -314,7 +314,7 @@ const test = () => {
   const recordedItem = recorded[recordedIndex]
 
   if (!recordedItem) {
-    stopTest()
+    stopTesting()
     return
   }
 
@@ -329,7 +329,7 @@ const test = () => {
       timeouts.compareHtml = setTimeout(() => {
         chrome.runtime.sendMessage({ command: `testItemFailed`, recordedIndex, error: { html: snapshotHtml } })
         timeouts.compareHtml = -1
-        stopTest()
+        stopTesting()
       }, timeLimits.compareHtml)
     }
   } else {
@@ -341,7 +341,7 @@ const test = () => {
       timeouts.simulateEvent = setTimeout(() => {
         chrome.runtime.sendMessage({ command: `testItemFailed`, recordedIndex, error: { message: `Target not found` } })
         timeouts.simulateEvent = -1
-        stopTest()
+        stopTesting()
       }, timeLimits.simulateEvent)
     }
   }
@@ -351,7 +351,7 @@ const test = () => {
  * Starts the test.
  * @param {object} message
  */
-const startTest = (message) => {
+const startTesting = (message) => {
   recordedIndex = 0
   recorded = message.recorded
   snapshotSelector = message.snapshotSelector
@@ -364,10 +364,10 @@ const startTest = (message) => {
 /**
  * Stops the test.
  */
-const stopTest = () => {
+const stopTesting = () => {
   clearTimeouts()
   isTesting = false
-  chrome.runtime.sendMessage({ command: `stopTest` })
+  chrome.runtime.sendMessage({ command: `stopTesting` })
 }
 
 /**
@@ -382,11 +382,11 @@ const handleDevToolsMessage = (message) => {
     case `stopRecording`:
       return stopRecording()
 
-    case `startTest`:
-      return startTest(message)
+    case `startTesting`:
+      return startTesting(message)
 
-    case `stopTest`:
-      return stopTest()
+    case `stopTesting`:
+      return stopTesting()
 
     case `consoleLog`:
       return console.log(message)

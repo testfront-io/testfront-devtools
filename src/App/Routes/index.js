@@ -1,5 +1,7 @@
-import Home from './Home'
+import Editor from './Editor'
+import Route from './Route'
 
 export {
-  Home
+  Editor,
+  Route
 }

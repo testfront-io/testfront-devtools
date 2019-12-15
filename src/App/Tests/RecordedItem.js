@@ -5,16 +5,11 @@ import * as UI from '../../UI'
 import * as utilities from '../utilities'
 
 const RecordedItem = styled(({
-  html,
-  eventType,
-  targetSelector,
-  value,
-  passed,
-  error,
+  index,
+  recordedItem,
+  updateRecordedItem,
+  deleteRecordedItem,
   color,
-  updateRecorded,
-  deleteRecorded,
-  recordedIndex,
   ...props
 }) => {
   const [ editing, setEditing ] = React.useState(``)
@@ -31,7 +26,7 @@ const RecordedItem = styled(({
 
   const deleteConfirmation = (
     <aside style={{ opacity: 1 }}>
-      <div>{`Delete ${typeof html !== `undefined` ? `snapshot` : `event`} from sequence?`}</div>
+      <div>{`Delete ${typeof recordedItem.html !== `undefined` ? `snapshot` : `event`} from sequence?`}</div>
 
       <UI.Button backgroundColor='gray' onClick={() => {
         setIsDeleting(false)
@@ -42,7 +37,7 @@ const RecordedItem = styled(({
 
       <UI.Button backgroundColor='red' onClick={() => {
         setIsDeleting(false)
-        deleteRecorded({ recordedIndex })
+        deleteRecordedItem({ index })
       }}>
         <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
         <span>Delete</span>
@@ -50,14 +45,14 @@ const RecordedItem = styled(({
     </aside>
   )
 
-  return typeof html !== `undefined` ? (
+  return typeof recordedItem.html !== `undefined` ? (
     <div { ...props } style={{ backgroundColor: `rgba(127, 127, 127, 0.1)` }}>
-      <span dangerouslySetInnerHTML={{ __html: octicons[passed === true ? `check` : (passed === false ? `x` : `device-camera`)].toSVG({ width: 15, height: 15 }) }} />
+      <span dangerouslySetInnerHTML={{ __html: octicons[recordedItem.passed === true ? `check` : (recordedItem.passed === false ? `x` : `device-camera`)].toSVG({ width: 15, height: 15 }) }} />
 
       <span>Snapshot</span>
 
-      {error && error.html && (
-        <div><pre dangerouslySetInnerHTML={{ __html: utilities.getPrettyHtml(utilities.getDiffs(html, error.html)) }} /></div>
+      {recordedItem.error && recordedItem.error.html && (
+        <div><pre dangerouslySetInnerHTML={{ __html: utilities.getPrettyHtml(utilities.getDiffs(recordedItem.html, recordedItem.error.html)) }} /></div>
       )}
 
       {isDeleting ? deleteConfirmation : (
@@ -68,18 +63,18 @@ const RecordedItem = styled(({
     </div>
   ) : (
     <div { ...props }>
-      <span dangerouslySetInnerHTML={{ __html: octicons[passed === true ? `check` : (passed === false ? `x` : `circuit-board`)].toSVG({ width: 15, height: 15 }) }} />
+      <span dangerouslySetInnerHTML={{ __html: octicons[recordedItem.passed === true ? `check` : (recordedItem.passed === false ? `x` : `circuit-board`)].toSVG({ width: 15, height: 15 }) }} />
 
       {editing ? (
         <React.Fragment>
           <UI.Input
             width={typeof value !== `undefined` ? `50%` : `100%`}
-            placeholder={`${eventType[0].toUpperCase() + eventType.slice(1)} Target Selector`}
-            value={targetSelector}
+            placeholder={`${recordedItem.eventType[0].toUpperCase() + recordedItem.eventType.slice(1)} Target Selector`}
+            value={recordedItem.targetSelector}
             autoFocus={editing === `targetSelector`}
             onBlur={event => {
-              if (event.target.value !== targetSelector) {
-                updateRecorded({ recordedIndex, updates: { eventType, targetSelector: event.target.value } })
+              if (event.target.value !== recordedItem.targetSelector) {
+                updateRecordedItem({ index, updates: { targetSelector: event.target.value } })
               }
             }}
             onKeyUp={event => {
@@ -88,8 +83,8 @@ const RecordedItem = styled(({
                 event.preventDefault()
                 event.stopPropagation()
               } else if (event.key === `Enter`) {
-                if (event.target.value !== targetSelector) {
-                  updateRecorded({ recordedIndex, updates: { eventType, targetSelector: event.target.value } })
+                if (event.target.value !== recordedItem.targetSelector) {
+                  updateRecordedItem({ index, updates: { targetSelector: event.target.value } })
                 }
 
                 setEditing(``)
@@ -103,11 +98,11 @@ const RecordedItem = styled(({
             <UI.Input
               width='50%'
               placeholder='Value'
-              value={value}
+              value={recordedItem.value}
               autoFocus={editing === `value`}
               onBlur={event => {
-                if (event.target.value !== value) {
-                  updateRecorded({ recordedIndex, updates: { eventType, targetSelector, value: event.target.value } })
+                if (event.target.value !== recordedItem.value) {
+                  updateRecordedItem({ index, updates: { value: event.target.value } })
                 }
               }}
               onKeyUp={event => {
@@ -116,8 +111,8 @@ const RecordedItem = styled(({
                   event.preventDefault()
                   event.stopPropagation()
                 } else if (event.key === `Enter`) {
-                  if (event.target.value !== targetSelector) {
-                    updateRecorded({ recordedIndex, updates: { eventType, targetSelector, value: event.target.value } })
+                  if (event.target.value !== recordedItem.targetSelector) {
+                    updateRecordedItem({ index, updates: { value: event.target.value } })
                   }
 
                   setEditing(``)
@@ -131,20 +126,20 @@ const RecordedItem = styled(({
       ) : (
         <React.Fragment>
           <span>
-            {eventType[0].toUpperCase() + eventType.slice(1)} <pre onClick={() => setEditing(`targetSelector`)}>{targetSelector.split(` > `).pop()}</pre>
+            {recordedItem.eventType[0].toUpperCase() + recordedItem.eventType.slice(1)} <pre onClick={() => setEditing(`targetSelector`)}>{recordedItem.targetSelector.split(` > `).pop()}</pre>
 
             {typeof value !== `undefined` && (
               <React.Fragment>
                 {` value to '`}
-                <span onClick={() => setEditing(`value`)}>{value}</span>
+                <span onClick={() => setEditing(`value`)}>{recordedItem.value}</span>
                 {`'`}
               </React.Fragment>
             )}
           </span>
 
-          {error && error.message && (
+          {recordedItem.error && recordedItem.error.message && (
             <div>
-              <span>{error.message}</span>
+              <span>{recordedItem.error.message}</span>
             </div>
           )}
         </React.Fragment>
@@ -248,7 +243,7 @@ const RecordedItem = styled(({
 
   > aside {
     position: absolute;
-    top: 5px;
+    top: 0;
     right: 0;
     opacity: 0;
     transition: opacity 0.25s ease-in-out;
