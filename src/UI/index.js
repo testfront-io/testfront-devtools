@@ -15,6 +15,7 @@ import Modal from './Modal'
 import Rotate from './Rotate'
 import Select from './Select'
 import Spinner from './Spinner'
+import StateIcon from './StateIcon'
 import Table from './Table'
 import Text from './Text'
 import Textarea from './Textarea'
@@ -38,6 +39,7 @@ export {
   Rotate,
   Select,
   Spinner,
+  StateIcon,
   Table,
   Text,
   Textarea,

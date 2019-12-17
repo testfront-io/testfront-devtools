@@ -40,7 +40,7 @@ const copyObjectWithValue = (object, value) => {
  * @param {object} message
  */
 const pushRecordedItem = ({ store, message }) => {
-  const { routeIndex, testIndex } = store.recording
+  const { routeIndex, testIndex } = store.data.recording
 
   store.setData(data => {
     const routes = [ ...data.routes ]
@@ -70,95 +70,112 @@ const pushRecordedItem = ({ store, message }) => {
 }
 
 /**
- * Sets `isRecording` to `false`.
- * @param {object} store
- */
-const stopRecording = ({ store }) => {
-  store.set(store => ({ isRecording: false }))
-}
-
-/**
- * Sets `passed` to `true` for the current test item.
+ * Sets the `message.result.state` and `message.result.error` (if provided) for the current test item.
  * @param {object} store
  * @param {object} message
  */
-const testItemPassed = ({ store, message }) => {
-  const { routeIndex, testIndex } = store.testing
-  const { recordedIndex } = message
+const setRecordedItemResult = ({ store, message }) => {
+  const { state, error } = message.result
 
   store.setData(data => {
-    const routes = [ ...data.routes ]
-    const tests = [ ...(routes[routeIndex] || {}).tests ]
-    const recorded = [ ...(tests[testIndex] || {}).recorded ]
+    let { testing } = data
+    let { routeIndex, testIndex, recordedItemIndex, allRoutes, allTests } = testing
+    const routes = data.routes && [ ...data.routes ]
+    const route = routes && routes[routeIndex] && { ...routes[routeIndex] }
+    const tests = route && route.tests && [ ...route.tests ]
+    const test = tests && tests[testIndex] && { ...tests[testIndex] }
+    const recorded = test && test.recorded && [ ...test.recorded ]
 
-    if (!recorded[recordedIndex]) {
+    const stopTesting = () => {
+      testing = {
+        routeIndex: -1,
+        testIndex: -1,
+        recordedItemIndex: -1,
+        allRoutes: false,
+        allTests: false
+      }
+    }
+
+    if (!recorded || !recorded[recordedItemIndex]) {
       return
     }
 
-    recorded[recordedIndex] = {
-      ...recorded[recordedIndex],
-      passed: true
-    }
-
-    tests[testIndex] = {
-      ...tests[testIndex],
-      recorded
-    }
-
-    routes[routeIndex] = {
-      ...routes[routeIndex],
-      tests
-    }
-
-    return { routes }
-  })
-}
-
-/**
- * Sets `passed` to `false` and assigns the provided `message.error` to the current test item.
- * @param {object} store
- * @param {object} message
- */
-const testItemFailed = ({ store, message }) => {
-  const { routeIndex, testIndex } = store.testing
-  const { recordedIndex, error } = message
-
-  store.setData(data => {
-    const routes = [ ...data.routes ]
-    const tests = [ ...(routes[routeIndex] || {}).tests ]
-    const recorded = [ ...(tests[testIndex] || {}).recorded ]
-
-    if (!recorded[recordedIndex]) {
-      return
-    }
-
-    recorded[recordedIndex] = {
-      ...recorded[recordedIndex],
-      passed: false,
+    recorded[recordedItemIndex] = {
+      ...recorded[recordedItemIndex],
+      state,
       error
     }
 
     tests[testIndex] = {
-      ...tests[testIndex],
+      ...test,
       recorded
     }
 
     routes[routeIndex] = {
-      ...routes[routeIndex],
+      ...route,
       tests
     }
 
-    return { routes }
-  })
-}
+    if (state === `PASSED`) {
+      if (recorded[++recordedItemIndex]) {
+        // Test the next recorded item.
+        testing = { ...testing, recordedItemIndex }
+      } else {
+        // Reached the end of the recorded items for the current test.
+        if (allTests) {
+          recordedItemIndex = 0
 
-/**
- * Sets `isTesting` to `false`.
- * @param {object} store
- * @param {object} message
- */
-const stopTesting = ({ store, message }) => {
-  store.set(store => ({ isTesting: false }))
+          // Find the next valid test.
+          while (tests[++testIndex]) {
+            if (!tests[testIndex].skip && tests[testIndex].recorded.length) {
+              break
+            }
+          }
+
+          if (tests[testIndex]) {
+            // Perform the next test.
+            testing = { ...testing, testIndex, recordedItemIndex }
+          } else {
+            // Reached the end of the tests for the current route.
+            if (allRoutes) {
+              // Find the next valid route and test.
+              while (routes[++routeIndex]) {
+                if (!routes[routeIndex].skip) {
+                  testIndex = -1
+
+                  while (tests[++testIndex]) {
+                    if (!tests[testIndex].skip && tests[testIndex].recorded.length) {
+                      break
+                    }
+                  }
+
+                  if (routes[routeIndex].tests[testIndex]) {
+                    break
+                  }
+                }
+              }
+
+              if (routes[routeIndex]) {
+                // Perform the next test.
+                testing = { ...testing, routeIndex, testIndex, recordedItemIndex }
+              } else {
+                stopTesting()
+              }
+            } else {
+              stopTesting()
+            }
+          }
+        } else {
+          stopTesting()
+        }
+      }
+    }
+
+    return {
+      routes,
+      testing
+    }
+  })
 }
 
 /**
@@ -173,20 +190,8 @@ const initialize = (store) => {
         pushRecordedItem({ store: ref.store, message })
         break
 
-      case `stopRecording`:
-        stopRecording({ store: ref.store, message })
-        break
-
-      case `testItemPassed`:
-        testItemPassed({ store: ref.store, message })
-        break
-
-      case `testItemFailed`:
-        testItemFailed({ store: ref.store, message })
-        break
-
-      case `stopTesting`:
-        stopTesting({ store: ref.store, message })
+      case `setRecordedItemResult`:
+        setRecordedItemResult({ store: ref.store, message })
         break
 
       case `consoleLog`:
@@ -213,35 +218,57 @@ const Provider = ({ children }) => {
     source: `local`,
     serverBaseURL: API.client.defaults.baseURL,
 
-    editing: {
-      routeIndex: -1,
-    },
-
-    recording: {
-      routeIndex: -1,
-      testIndex: -1
-    },
-
-    testing: {
-      routeIndex: -1,
-      testIndex: -1,
-      allRoutes: false,
-      allTests: false
-    },
-
     data: {
-      routes: [{
+      routes: [/*{
         path: `/`, // Matched via react-router's `matchPath` function.
         exact: false,
         strict: false,
         skip: false,
-        tests: [/*{
+        state?: ``, // [`PASSED`, `FAILED`]
+        tests: [{
           description: ``,
           snapshotSelector: ``,
           eventTypes: [],
-          recorded: []
-        }*/]
-      }]
+          recorded: [recordedItem.html ? {
+            html,
+            state?: ``, // [`PASSED`, `FAILED`]
+            error?: {
+              html
+            }
+          } : {
+            eventType,
+            targetSelector,
+            value?,
+            id?,
+            name?,
+            placeholder?,
+            state?: ``, // [`PASSED`, `FAILED`]
+            error?: {
+              message: ``
+            }
+          }],
+          state?: ``, // [`PASSED`, `FAILED`]
+        }]
+      }*/],
+
+      viewing: {
+        routeIndex: -1,
+      },
+
+      recording: {
+        routeIndex: -1,
+        testIndex: -1
+      },
+
+      testing: {
+        routeIndex: -1,
+        testIndex: -1,
+        recordedItemIndex: -1,
+        allRoutes: false,
+        allTests: false
+      },
+
+      state: ``
     },
 
     status: {},
@@ -305,11 +332,61 @@ const Provider = ({ children }) => {
           return store
         }
 
+        const nextStore = {
+          ...store,
+          data: { ...store.data, ...data },
+          status: { ...store.status, ...copyObjectWithValue(data, `updating`) },
+          error: { ...store.error, ...copyObjectWithValue(data, ``) }
+        }
+
+        if (store.data.routes !== nextStore.data.routes) {
+          nextStore.data.routes.forEach((route, routeIndex) => {
+            if (store.data.routes[routeIndex] !== route) {
+              route.tests.forEach((test, testIndex) => {
+                if (store.data.routes[routeIndex].tests[testIndex] !== test) {
+                  if (!test.recorded.some(recordedItem => recordedItem.state !== `PASSED`)) {
+                    test.state = `PASSED`
+                  } else if (test.recorded.some(recordedItem => recordedItem.state === `FAILED`)) {
+                    test.state = `FAILED`
+                  }
+                }
+              })
+
+              if (!route.tests.some(test => !test.skip && test.state !== `PASSED`)) {
+                route.state = `PASSED`
+              } else if (route.tests.some(test => !test.skip && test.state === `FAILED`)) {
+                route.state = `FAILED`
+              }
+            }
+          })
+
+          if (!nextStore.data.routes.some(route => !route.skip && route.state !== `PASSED`)) {
+            nextStore.data.state = `PASSED`
+          } else if (nextStore.data.routes.some(route => !route.skip && route.state === `FAILED`)) {
+            nextStore.data.state = `FAILED`
+          }
+        }
+
+        if (
+          store.data.testing !== nextStore.data.testing
+          && (
+            store.data.testing.routeIndex !== nextStore.data.testing.routeIndex
+            || store.data.testing.testIndex !== nextStore.data.testing.testIndex
+          )
+          && nextStore.data.routes[nextStore.data.testing.routeIndex]
+          && nextStore.data.routes[nextStore.data.testing.routeIndex].tests[nextStore.data.testing.testIndex]
+        ) {
+          setTimeout(() => tab.sendMessage({ // TODO find a better way?
+            command: `startTesting`,
+            test: nextStore.data.routes[nextStore.data.testing.routeIndex].tests[nextStore.data.testing.testIndex]
+          }), 10)
+        }
+
         switch (store.source) {
           case `server`:
             Object.keys(data).forEach(async key => {
               try {
-                await API.client.put(key, data[key])
+                await API.client.put(key, nextStore.data[key])
               } catch (error) {
                 setStore(store => ({
                   ...store,
@@ -323,7 +400,7 @@ const Provider = ({ children }) => {
           default:
             Object.keys(data).forEach(async key => {
               try {
-                await local.set({ [key]: data[key] })
+                await local.set({ [key]: nextStore.data[key] })
               } catch (error) {
                 setStore(store => ({
                   ...store,
@@ -334,12 +411,7 @@ const Provider = ({ children }) => {
             })
         }
 
-        return {
-          ...store,
-          data: { ...store.data, ...data },
-          status: { ...store.status, ...copyObjectWithValue(data, `updating`) },
-          error: { ...store.error, ...copyObjectWithValue(data, ``) }
-        }
+        return nextStore
       })
     },
 
@@ -383,17 +455,50 @@ const Provider = ({ children }) => {
     }
 
     configure()
-  } else if (!store.isInitialized) {
+  } else if (!store.initializedRef) {
     const initializedRef = initialize(store)
 
     for (let key in store.data) {
       store.getData(key)
     }
 
-    setStore(store => ({ ...store, isInitialized: true, initializedRef }))
+    setStore(store => ({ ...store, initializedRef }))
   } else {
     // Update `store` reference used within `tab.onMessage`.
     store.initializedRef.store = store
+
+    // Store is initialized when the status for each data key is defined and not 'fetching'.
+    if (!store.isInitialized && !Object.keys(store.data).filter(
+      key => (typeof store.status[key] === `undefined` || store.status[key] === `fetching`)
+    ).length) {
+      setStore(store => ({ ...store, isInitialized: true }))
+
+      // Stop the content script just in case it's out of sync with dev tools.
+      if (store.data.recording.routeIndex > -1) {
+        tab.sendMessage({ command: `stopRecording` })
+
+        store.setData(data => ({
+          recording: {
+            routeIndex: -1,
+            testIndex: -1
+          }
+        }))
+      }
+
+      if (store.data.testing.routeIndex > -1) {
+        tab.sendMessage({ command: `stopTesting` })
+
+        store.setData(data => ({
+          testing: {
+            routeIndex: -1,
+            testIndex: -1,
+            recordedItemIndex: -1,
+            allRoutes: false,
+            allTests: false
+          }
+        }))
+      }
+    }
   }
 
   return store.isInitialized && (

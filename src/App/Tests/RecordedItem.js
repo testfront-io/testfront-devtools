@@ -5,11 +5,14 @@ import * as UI from '../../UI'
 import * as utilities from '../utilities'
 
 const RecordedItem = styled(({
+  recording,
+  testing,
+  routeIndex,
+  testIndex,
   index,
   recordedItem,
   updateRecordedItem,
   deleteRecordedItem,
-  color,
   ...props
 }) => {
   const [ editing, setEditing ] = React.useState(``)
@@ -46,8 +49,16 @@ const RecordedItem = styled(({
   )
 
   return typeof recordedItem.html !== `undefined` ? (
-    <div { ...props } style={{ backgroundColor: `rgba(127, 127, 127, 0.1)` }}>
-      <span dangerouslySetInnerHTML={{ __html: octicons[recordedItem.passed === true ? `check` : (recordedItem.passed === false ? `x` : `device-camera`)].toSVG({ width: 15, height: 15 }) }} />
+    <div { ...props } style={{ backgroundColor: `#3c3c3c` }}>
+      <UI.StateIcon
+        recording={recording}
+        testing={testing}
+        routeIndex={routeIndex}
+        testIndex={testIndex}
+        recordedItemIndex={index}
+        state={recordedItem.state}
+        iconKey='device-camera'
+      />
 
       <span>Snapshot</span>
 
@@ -63,12 +74,20 @@ const RecordedItem = styled(({
     </div>
   ) : (
     <div { ...props }>
-      <span dangerouslySetInnerHTML={{ __html: octicons[recordedItem.passed === true ? `check` : (recordedItem.passed === false ? `x` : `circuit-board`)].toSVG({ width: 15, height: 15 }) }} />
+      <UI.StateIcon
+        recording={recording}
+        testing={testing}
+        routeIndex={routeIndex}
+        testIndex={testIndex}
+        recordedItemIndex={index}
+        state={recordedItem.state}
+        iconKey='circuit-board'
+      />
 
       {editing ? (
         <React.Fragment>
           <UI.Input
-            width={typeof value !== `undefined` ? `50%` : `100%`}
+            width={typeof recordedItem.value !== `undefined` ? `50%` : `100%`}
             placeholder={`${recordedItem.eventType[0].toUpperCase() + recordedItem.eventType.slice(1)} Target Selector`}
             value={recordedItem.targetSelector}
             autoFocus={editing === `targetSelector`}
@@ -94,7 +113,7 @@ const RecordedItem = styled(({
             }}
           />
 
-          {typeof value !== `undefined` && (
+          {typeof recordedItem.value !== `undefined` && (
             <UI.Input
               width='50%'
               placeholder='Value'
@@ -128,7 +147,7 @@ const RecordedItem = styled(({
           <span>
             {recordedItem.eventType[0].toUpperCase() + recordedItem.eventType.slice(1)} <pre onClick={() => setEditing(`targetSelector`)}>{recordedItem.targetSelector.split(` > `).pop()}</pre>
 
-            {typeof value !== `undefined` && (
+            {typeof recordedItem.value !== `undefined` && (
               <React.Fragment>
                 {` value to '`}
                 <span onClick={() => setEditing(`value`)}>{recordedItem.value}</span>
@@ -166,7 +185,8 @@ const RecordedItem = styled(({
   position: relative;
   display: block;
   min-height: 30px;
-  padding: 5px 80px 5px 50px;
+  padding: 5px 80px 5px 47.5px;
+  background: #343434;
   font-size: 15px;
   line-height: 20px;
 
@@ -176,9 +196,10 @@ const RecordedItem = styled(({
 
     &:first-child {
       position: absolute;
-      left: 30px;
+      left: 27px;
       top: 7.5px;
-      color: ${({ color, theme }) => theme.colors[color] || color || `inherit`};
+      width: 15px;
+      height: 15px;
     }
 
     > pre,
@@ -230,9 +251,7 @@ const RecordedItem = styled(({
   }
 
   > ${UI.Input} {
-    position: relative;
-    top: -5px;
-    margin: 0;
+    margin: -5px 0 -4px;
 
     > input {
       height: 30px;
@@ -243,17 +262,20 @@ const RecordedItem = styled(({
 
   > aside {
     position: absolute;
-    top: 0;
+    top: 5px;
     right: 0;
+    background: inherit;
     opacity: 0;
     transition: opacity 0.25s ease-in-out;
 
     > div {
-      display:inline-block;
+      display: inline-block;
       vertical-align: middle;
+      padding-left: 5px;
     }
 
     > ${UI.Button} {
+      vertical-align: top;
       height: 20px;
       padding: 0 3px;
       margin-left: 5px;

@@ -14,14 +14,14 @@ export const Form = styled(UI.Form)`
     margin-bottom: 5px;
 
     > ${UI.Button} {
-      margin-left: -5px;
+      margin-left: -3px;
       padding-left: 0;
       opacity: 0.5;
       transition: opacity 0.25s ease-in-out;
 
       > span {
         ~ span {
-          margin-left: 0;
+          margin-left: 3px;
           margin-right: 0;
         }
       }
@@ -42,7 +42,7 @@ export const Form = styled(UI.Form)`
     width: 100%;
     height: 100%;
     font-size: 18px;
-    padding-bottom: 15px;
+    padding-bottom: 7.5px;
     background: ${({ theme }) => theme.colors.background};
 
     > div {
@@ -83,11 +83,12 @@ export const Form = styled(UI.Form)`
 `
 
 const Editor = ({ store }) => {
-  const { editing, recording, testing, data, error, set, setData } = store
+  const { data, error, set, setData } = store
+  const { viewing, recording, testing } = data
   const [ autoFocusIndex, setAutoFocusIndex ] = React.useState(-1)
   const [ isDeleting, setIsDeleting ] = React.useState(false)
 
-  const { routeIndex } = editing
+  const { routeIndex } = viewing
   const route = data.routes[routeIndex]
 
   const updateRoute = ({ updates }) => setData(data => {
@@ -125,9 +126,9 @@ const Editor = ({ store }) => {
   return (
     <Form>
       <header>
-        <UI.Button backgroundColor='transparent' onClick={() => set(store => ({ editing: { routeIndex: -1 } }))}>
-          <span dangerouslySetInnerHTML={{ __html: octicons[`chevron-left`].toSVG({ width: 20, height: 20 }) }} />
-          <span>Back</span>
+        <UI.Button backgroundColor='transparent' onClick={() => setData(data => ({ viewing: { routeIndex: -1 } }))}>
+          <span dangerouslySetInnerHTML={{ __html: octicons[`arrow-left`].toSVG({ width: 20, height: 20 }) }} />
+          <span>Routes</span>
         </UI.Button>
       </header>
 
@@ -152,7 +153,7 @@ const Editor = ({ store }) => {
 
             <UI.Button backgroundColor='red' onClick={() => {
               setIsDeleting(false)
-              set(store => ({ editing: { routeIndex: -1 } }))
+              setData(data => ({ viewing: { routeIndex: -1 } }))
               deleteRoute()
             }}>
               <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
@@ -162,22 +163,22 @@ const Editor = ({ store }) => {
         </center>
       ) : (
         <React.Fragment>
-          {route.tests.map((test, index) => {
-            const autoFocus = autoFocusIndex === index
+          {route.tests.map((test, testIndex) => {
+            const autoFocus = autoFocusIndex === testIndex
 
             if (autoFocus) {
-              setAutoFocusIndex(-1)
+              setTimeout(() => setAutoFocusIndex(-1))
             }
 
             return (
               <Test
-                key={`Test_${index}`}
+                key={`Test_${routeIndex}_${testIndex}`}
                 recording={recording}
                 testing={testing}
                 set={set}
                 setData={setData}
                 routeIndex={routeIndex}
-                index={index}
+                index={testIndex}
                 test={test}
                 updateTest={updateTest}
                 deleteTest={deleteTest}
@@ -187,7 +188,7 @@ const Editor = ({ store }) => {
           })}
 
           <footer>
-            <UI.Button backgroundColor='green' onClick={() => setData(data => {
+            <UI.Button onClick={() => setData(data => {
               const routes = [ ...data.routes ]
               const tests = [ ...routes[routeIndex].tests ]
 

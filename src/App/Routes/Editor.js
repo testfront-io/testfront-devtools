@@ -26,7 +26,8 @@ const Editor = () => {
   return (
     <Store.Context.Consumer>
       {store => {
-        const { editing, testing, data, error, set, setData } = store
+        const { data, error, set, setData } = store
+        const { viewing, recording, testing } = data
 
         const updateRoute = ({ index, updates }) => setData(data => {
           const routes = [ ...data.routes ]
@@ -40,18 +41,19 @@ const Editor = () => {
           return { routes }
         })
 
-        return (editing.routeIndex < 0 || !data.routes[editing.routeIndex]) ? (
+        return (viewing.routeIndex < 0 || !data.routes[viewing.routeIndex]) ? (
           <Form>
             {data.routes.map((route, index) => {
               const autoFocus = autoFocusIndex === index
 
               if (autoFocus) {
-                setAutoFocusIndex(-1)
+                setTimeout(() => setAutoFocusIndex(-1))
               }
 
               return (
                 <Route
                   key={`Route_${index}`}
+                  recording={recording}
                   testing={testing}
                   set={set}
                   setData={setData}
@@ -65,7 +67,7 @@ const Editor = () => {
             })}
 
             <footer>
-              <UI.Button backgroundColor='green' onClick={() => setData(data => {
+              <UI.Button onClick={() => setData(data => {
                 const routes = [ ...data.routes ]
 
                 routes.push({
@@ -80,7 +82,7 @@ const Editor = () => {
 
                 return { routes }
               })}>
-                Add Route
+                <span>Add Route</span>
               </UI.Button>
 
               <UI.Error>

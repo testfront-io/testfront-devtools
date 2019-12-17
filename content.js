@@ -7,7 +7,6 @@ let isTesting = false
 let snapshotSelector = `html`
 let snapshotHtml = ``
 
-let recordedIndex = 0
 let recorded = []
 
 const timeouts = {
@@ -134,7 +133,17 @@ const specialEventListeners = {
     const placeholder = event.target.getAttribute(`placeholder`) || undefined
 
     if (targetSelector) {
-      chrome.runtime.sendMessage({ command: `pushRecordedItem`, recordedItem: { eventType, targetSelector, value, id, name, placeholder } })
+      chrome.runtime.sendMessage({
+        command: `pushRecordedItem`,
+        recordedItem: {
+          eventType,
+          targetSelector,
+          value,
+          id,
+          name,
+          placeholder
+        }
+      })
     }
   },
 
@@ -147,7 +156,17 @@ const specialEventListeners = {
     const placeholder = event.target.getAttribute(`placeholder`) || undefined
 
     if (targetSelector) {
-      chrome.runtime.sendMessage({ command: `pushRecordedItem`, recordedItem: { eventType, targetSelector, value, id, name, placeholder } })
+      chrome.runtime.sendMessage({
+        command: `pushRecordedItem`,
+        recordedItem: {
+          eventType,
+          targetSelector,
+          value,
+          id,
+          name,
+          placeholder
+        }
+      })
     }
   }
 }
@@ -164,7 +183,13 @@ const addEventListener = eventType => {
       const targetSelector = getTargetSelector(event.target)
 
       if (targetSelector) {
-        chrome.runtime.sendMessage({ command: `pushRecordedItem`, recordedItem: { eventType, targetSelector } })
+        chrome.runtime.sendMessage({
+          command: `pushRecordedItem`,
+          recordedItem: {
+            eventType,
+            targetSelector
+          }
+        })
       }
     }
   }
@@ -210,37 +235,46 @@ const record = () => {
 
   if (html !== snapshotHtml) {
     snapshotHtml = html
-    chrome.runtime.sendMessage({ command: `pushRecordedItem`, recordedItem: { html } })
+
+    chrome.runtime.sendMessage({
+      command: `pushRecordedItem`,
+      recordedItem: {
+        html
+      }
+    })
   }
 }
 
 /**
- * Starts recording snapshots and events based on the provided `message.snapshotSelector` and `message.eventTypes`.
+ * Starts recording snapshots and events based on the provided `message.test`.
  * @param {object} message
  */
 const startRecording = (message) => {
-  const html = document.querySelector(message.snapshotSelector).innerHTML
+  const html = document.querySelector(message.test.snapshotSelector).innerHTML
 
-  chrome.runtime.sendMessage({ command: `pushRecordedItem`, recordedItem: { html } })
-  snapshotSelector = message.snapshotSelector
+  chrome.runtime.sendMessage({
+    command: `pushRecordedItem`,
+    recordedItem: {
+      html
+    }
+  })
+
+  snapshotSelector = message.test.snapshotSelector
   snapshotHtml = html
   isRecording = true
   isTesting = false
   clearTimeouts()
-  setEventListeners(message.eventTypes)
+  setEventListeners(message.test.eventTypes)
 }
 
 /**
  * Stops recording by clearing event listeners and timeouts.
  */
 const stopRecording = () => {
-  const html = document.querySelector(snapshotSelector).innerHTML
-
-  snapshotHtml = html
+  snapshotHtml = document.querySelector(snapshotSelector).innerHTML
   isRecording = false
   clearTimeouts()
   setEventListeners([])
-  chrome.runtime.sendMessage({ command: `stopRecording` })
 }
 
 /**
@@ -311,7 +345,7 @@ const simulateEvent = recordedItem => {
  * Tests the `recorded` array of events and html.
  */
 const test = () => {
-  const recordedItem = recorded[recordedIndex]
+  const recordedItem = recorded[0]
 
   if (!recordedItem) {
     stopTesting()
@@ -322,26 +356,56 @@ const test = () => {
     snapshotHtml = document.querySelector(snapshotSelector).innerHTML
 
     if (snapshotHtml === recordedItem.html) {
-      chrome.runtime.sendMessage({ command: `testItemPassed`, recordedIndex })
+      recorded.shift()
       clearTimeouts([`compareHtml`])
-      recordedIndex++
+
+      chrome.runtime.sendMessage({
+        command: `setRecordedItemResult`,
+        result: {
+          state: `PASSED`
+        }
+      })
     } else if (timeouts.compareHtml < 0) {
       timeouts.compareHtml = setTimeout(() => {
-        chrome.runtime.sendMessage({ command: `testItemFailed`, recordedIndex, error: { html: snapshotHtml } })
         timeouts.compareHtml = -1
         stopTesting()
+
+        chrome.runtime.sendMessage({
+          command: `setRecordedItemResult`,
+          result: {
+            state: `FAILED`,
+            error: {
+              html: snapshotHtml
+            }
+          }
+        })
       }, timeLimits.compareHtml)
     }
   } else {
     if (simulateEvent(recordedItem)) {
-      chrome.runtime.sendMessage({ command: `testItemPassed`, recordedIndex })
+      recorded.shift()
       clearTimeouts([`simulateEvent`])
-      recordedIndex++
+
+      chrome.runtime.sendMessage({
+        command: `setRecordedItemResult`,
+        result: {
+          state: `PASSED`
+        }
+      })
     } else if (timeouts.simulateEvent < 0) {
       timeouts.simulateEvent = setTimeout(() => {
-        chrome.runtime.sendMessage({ command: `testItemFailed`, recordedIndex, error: { message: `Target not found` } })
         timeouts.simulateEvent = -1
         stopTesting()
+
+        chrome.runtime.sendMessage({
+          command: `setRecordedItemResult`,
+          result: {
+            state: `FAILED`,
+            error: {
+              message: `Target not found`
+            }
+          }
+        })
       }, timeLimits.simulateEvent)
     }
   }
@@ -352,9 +416,8 @@ const test = () => {
  * @param {object} message
  */
 const startTesting = (message) => {
-  recordedIndex = 0
-  recorded = message.recorded
-  snapshotSelector = message.snapshotSelector
+  recorded = message.test.recorded
+  snapshotSelector = message.test.snapshotSelector
   snapshotHtml = document.querySelector(snapshotSelector).innerHTML
   clearTimeouts()
   isRecording = false
@@ -367,7 +430,6 @@ const startTesting = (message) => {
 const stopTesting = () => {
   clearTimeouts()
   isTesting = false
-  chrome.runtime.sendMessage({ command: `stopTesting` })
 }
 
 /**
@@ -380,13 +442,13 @@ const handleDevToolsMessage = (message) => {
       return startRecording(message)
 
     case `stopRecording`:
-      return stopRecording()
+        return stopRecording(message)
 
     case `startTesting`:
-      return startTesting(message)
+        return startTesting(message)
 
     case `stopTesting`:
-      return stopTesting()
+      return stopTesting(message)
 
     case `consoleLog`:
       return console.log(message)
