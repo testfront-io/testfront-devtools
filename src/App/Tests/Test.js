@@ -310,7 +310,7 @@ const Test = styled(({
         )}
 
         {testing.routeIndex === routeIndex && testing.testIndex === index && (
-          <aside style={{ opacity: 1 }}>
+          <aside>
             <UI.Button backgroundColor='red' onClick={() => stopTesting()}>
               <span>Stop Testing</span>
             </UI.Button>
@@ -372,7 +372,6 @@ const Test = styled(({
   )
 })`
   position: relative;
-  margin-bottom: 30px;
   box-shadow: 0 -3px 6px 6px rgba(0, 0, 0, 0.05);
   opacity: ${({ test }) => test.skip ? 0.25 : 1};
   transition: opacity 0.25s ease-in-out;
@@ -466,7 +465,7 @@ const Test = styled(({
   > footer {
     position: relative;
     padding: 5px;
-    background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(127, 127, 127, 0.5)`)};
+    background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(127, 127, 127, 0.25)`)};
 
     > details {
       > summary {
@@ -575,6 +574,7 @@ const Test = styled(({
     font-size: 18px;
     padding-bottom: 7.5px;
     background: ${({ theme }) => theme.colors.background};
+    border: 1px solid ${({ theme }) => theme.colors.red || `red`};
 
     > div {
       > div {

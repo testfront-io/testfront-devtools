@@ -87,6 +87,8 @@ const setRecordedItemResult = ({ store, message }) => {
     const recorded = test && test.recorded && [ ...test.recorded ]
 
     const stopTesting = () => {
+      tab.sendMessage({ command: `stopTesting` })
+
       testing = {
         routeIndex: -1,
         testIndex: -1,
@@ -169,6 +171,8 @@ const setRecordedItemResult = ({ store, message }) => {
           stopTesting()
         }
       }
+    } else {
+      stopTesting()
     }
 
     return {

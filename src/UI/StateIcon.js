@@ -12,7 +12,7 @@ const StateIcon = withTheme(({
   recordedItemIndex,
   state,
   skip,
-  iconKey,
+  iconKey = `question`,
   width = 15,
   height = 15,
   style,
@@ -27,15 +27,15 @@ const StateIcon = withTheme(({
   }
 
   if (
-    recording.routeIndex === routeIndex
-    && (typeof testIndex === `undefined` || recording.testIndex === testIndex)
-    && (typeof recordedItemIndex === `undefined` || recording.recordedItemIndex === recordedItemIndex)
+    ((typeof routeIndex === `undefined` && recording.routeIndex > -1) || recording.routeIndex === routeIndex)
+    && ((typeof testIndex === `undefined` && recording.testIndex > -1) || recording.testIndex === testIndex)
+    && ((typeof recordedItemIndex === `undefined` && recording.recordedItemIndex > -1) || recording.recordedItemIndex === recordedItemIndex)
   ) {
     state = `RECORDING`
   } else if (
-    testing.routeIndex === routeIndex
-    && (typeof testIndex === `undefined` || testing.testIndex === testIndex)
-    && (typeof recordedItemIndex === `undefined` || testing.recordedItemIndex === recordedItemIndex)
+    ((typeof routeIndex === `undefined` && testing.routeIndex > -1) || testing.routeIndex === routeIndex)
+    && ((typeof testIndex === `undefined` && testing.testIndex > -1) || testing.testIndex === testIndex)
+    && ((typeof recordedItemIndex === `undefined` && testing.recordedItemIndex > -1) || testing.recordedItemIndex === recordedItemIndex)
   ) {
     state = `TESTING`
   }

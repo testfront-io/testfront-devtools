@@ -442,10 +442,10 @@ const handleDevToolsMessage = (message) => {
       return startRecording(message)
 
     case `stopRecording`:
-        return stopRecording(message)
+      return stopRecording(message)
 
     case `startTesting`:
-        return startTesting(message)
+      return startTesting(message)
 
     case `stopTesting`:
       return stopTesting(message)

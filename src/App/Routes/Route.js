@@ -226,7 +226,6 @@ const Route = styled(({
         routeIndex={index}
         testIndex={testIndex}
         state={test.state}
-        iconKey='question'
       />
 
       <span>{test.description}</span>
@@ -292,13 +291,13 @@ const Route = styled(({
         )}
 
         {testing.routeIndex === index && (
-          <aside style={{ opacity: 1 }}>
+          <aside>
             <UI.Button onClick={() => setData(data => ({ viewing: { routeIndex: index }}))}>
               <span>View Tests</span>
             </UI.Button>
 
             <UI.Button backgroundColor='red' onClick={() => stopTesting()}>
-              <span>Stop Tests</span>
+              <span>Stop Testing</span>
             </UI.Button>
           </aside>
         )}
@@ -357,7 +356,6 @@ const Route = styled(({
   )
 })`
   position: relative;
-  margin-bottom: 30px;
   box-shadow: 0 -3px 6px 6px rgba(0, 0, 0, 0.05);
   opacity: ${({ route }) => route.skip ? 0.25 : 1};
   transition: opacity 0.25s ease-in-out;
@@ -424,7 +422,7 @@ const Route = styled(({
   > footer {
     position: relative;
     padding: 5px;
-    background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(127, 127, 127, 0.5)`)};
+    background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(127, 127, 127, 0.25)`)};
 
     > details {
       > summary {
@@ -533,6 +531,7 @@ const Route = styled(({
     font-size: 18px;
     padding-bottom: 7.5px;
     background: ${({ theme }) => theme.colors.background};
+    border: 1px solid ${({ theme }) => theme.colors.red || `red`};
 
     > div {
       > div {
