@@ -224,6 +224,7 @@ const Provider = ({ children }) => {
 
     data: {
       routes: [/*{
+        description: ``,
         path: `/`, // Matched via react-router's `matchPath` function.
         exact: false,
         strict: false,

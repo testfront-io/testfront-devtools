@@ -5,12 +5,41 @@ import octicons from 'octicons'
 import * as UI from '../../UI'
 import tab from '../../tab'
 
-export const PathInput = styled(({ index, route, autoFocus, updateRoute, ...props }) => (
+export const PrimaryInputs = styled(({ index, route, autoFocus, updateRoute, ...props }) => (
   <div { ...props }>
     <UI.Input
+      width='50%'
+      placeholder='Route Description'
+      value={route.description}
+      autoFocus={autoFocus}
+      onChange={(event) => {
+        const description = event.target.value
+
+        if (description !== route.description) {
+          updateRoute({ index, updates: { description } })
+        }
+      }}
+    >
+      <aside>
+        <label>
+          <input
+            type='checkbox'
+            checked={route.skip}
+            onChange={event => {
+              const skip = event.target.checked
+              updateRoute({ index, updates: { skip } })
+            }}
+          />
+
+          <span>Skip</span>
+        </label>
+      </aside>
+    </UI.Input>
+
+    <UI.Input
+      width='50%'
       placeholder='Path'
       value={route.path}
-      autoFocus={autoFocus}
       onChange={(event) => {
         const path = event.target.value
 
@@ -18,87 +47,80 @@ export const PathInput = styled(({ index, route, autoFocus, updateRoute, ...prop
           updateRoute({ index, updates: { path } })
         }
       }}
-    />
+    >
+      <aside>
+        <label>
+          <input
+            type='checkbox'
+            checked={route.exact}
+            onChange={event => {
+              const exact = event.target.checked
+              updateRoute({ index, updates: { exact } })
+            }}
+          />
 
-    <aside>
-      <label>
-        <input
-          type='checkbox'
-          checked={route.exact}
-          onChange={event => {
-            const exact = event.target.checked
-            updateRoute({ index, updates: { exact } })
-          }}
-        />
+          <span>Exact</span>
+        </label>
 
-        <span>Exact</span>
-      </label>
+        <label>
+          <input
+            type='checkbox'
+            checked={route.strict}
+            onChange={event => {
+              const strict = event.target.checked
+              updateRoute({ index, updates: { strict } })
+            }}
+          />
 
-      <label>
-        <input
-          type='checkbox'
-          checked={route.strict}
-          onChange={event => {
-            const strict = event.target.checked
-            updateRoute({ index, updates: { strict } })
-          }}
-        />
-
-        <span>Strict</span>
-      </label>
-
-      <label>
-        <input
-          type='checkbox'
-          checked={route.skip}
-          onChange={event => {
-            const skip = event.target.checked
-            updateRoute({ index, updates: { skip } })
-          }}
-        />
-
-        <span>Skip</span>
-      </label>
-    </aside>
+          <span>Strict</span>
+        </label>
+      </aside>
+    </UI.Input>
   </div>
 ))`
   position: relative;
 
   > ${UI.Input} {
     width: 100%;
-  }
 
-  > aside {
-    position: absolute;
-    top: 0;
-    left: 45px;
-    text-transform: uppercase;
-    white-space: nowrap;
+    > aside {
+      position: absolute;
+      top: 1px;
+      left: 135px;
+      text-transform: uppercase;
+      white-space: nowrap;
 
-    > label {
-      display: inline-block;
-      vertical-align: top;
-      margin-right: 12px;
-      font-size: 11px;
-      line-height: 1;
-      cursor: pointer;
+      > label {
+        display: inline-block;
+        vertical-align: top;
+        margin-right: 12px;
+        font-size: 11px;
+        line-height: 1;
+        cursor: pointer;
 
-      > input {
-        margin: 1px 3px;
+        > input {
+          margin: 1px 3px;
 
-        &:checked + span {
-          color: rgba(255, 255, 255, 0.9);
+          &:checked + span {
+            color: rgba(255, 255, 255, 0.9);
+          }
         }
-      }
 
-      > span {
-        color: gray;
-      }
-
-      &:hover {
         > span {
-          color: inherit;
+          color: gray;
         }
+
+        &:hover {
+          > span {
+            color: inherit;
+          }
+        }
+      }
+    }
+
+    + ${UI.Input} {
+      > aside {
+        left: 45px;
       }
     }
   }
@@ -236,7 +258,7 @@ const Route = styled(({
 
   return (
     <section { ...props }>
-      <PathInput
+      <PrimaryInputs
         index={index}
         route={route}
         autoFocus={autoFocus}
@@ -282,7 +304,7 @@ const Route = styled(({
               <span>Edit Tests</span>
             </UI.Button>
 
-            {route.tests.some(test => !test.skip && test.recorded.length > 1) && (
+            {route.tests.some(test => !test.skip && test.recorded.length > 0) && (
               <UI.Button backgroundColor='green' onClick={() => startTesting()}>
                 <span>Run Tests</span>
               </UI.Button>

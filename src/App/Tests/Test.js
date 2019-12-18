@@ -175,7 +175,7 @@ const Test = styled(({
   return (
     <section { ...props }>
       <UI.Input
-        width='60%'
+        width='50%'
         placeholder='Test Description'
         value={test.description || ``}
         onBlur={event => {
@@ -202,7 +202,7 @@ const Test = styled(({
       </UI.Input>
 
       <UI.Input
-        width='40%'
+        width='50%'
         placeholder='Snapshot Container Selector'
         value={test.snapshotSelector || `html`}
         onBlur={event => {
@@ -381,7 +381,7 @@ const Test = styled(({
 
     > aside {
       position: absolute;
-      top: 0;
+      top: 1px;
       left: 125px;
       text-transform: uppercase;
       white-space: nowrap;

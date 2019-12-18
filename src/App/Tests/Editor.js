@@ -3,7 +3,7 @@ import styled from 'styled-components'
 import octicons from 'octicons'
 import * as UI from '../../UI'
 import Test from './Test'
-import { PathInput } from '../Routes/Route'
+import { PrimaryInputs } from '../Routes/Route'
 import tab from '../../tab'
 
 // Customize the default UI.Form a bit.
@@ -183,7 +183,7 @@ const Editor = ({ store }) => {
         </UI.Button>
       </header>
 
-      <PathInput
+      <PrimaryInputs
         routeIndex={routeIndex}
         route={data.routes[routeIndex]}
         updateRoute={updateRoute}
