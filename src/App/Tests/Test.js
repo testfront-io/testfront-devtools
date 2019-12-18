@@ -79,8 +79,8 @@ const Test = styled(({
       const tests = [ ...routes[routeIndex].tests ]
       const recorded = tests[index].recorded.map(recordedItem => ({
         ...recordedItem,
-        state: undefined,
-        error: undefined
+        state: ``,
+        error: null
       }))
 
       tests[index] = {
@@ -207,7 +207,7 @@ const Test = styled(({
         value={test.snapshotSelector || `html`}
         onBlur={event => {
           if (event.target.value !== test.snapshotSelector) {
-            updateTest({ index, updates: { snapshotSelector: event.target.value, recorded: [], state: undefined } })
+            updateTest({ index, updates: { snapshotSelector: event.target.value, recorded: [], state: `` } })
           }
         }}
       />
@@ -360,7 +360,7 @@ const Test = styled(({
 
             <UI.Button backgroundColor='red' onClick={() => {
               setIsErasing(false)
-              updateTest({ index, updates: { recorded: [], state: undefined } })
+              updateTest({ index, updates: { recorded: [], state: `` } })
             }}>
               <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
               <span>Erase</span>

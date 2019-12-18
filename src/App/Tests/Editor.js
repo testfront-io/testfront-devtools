@@ -248,7 +248,8 @@ const Editor = ({ store }) => {
                 snapshotSelector: (tests[tests.length - 1] && tests[tests.length - 1].snapshotSelector) || `html`,
                 eventTypes: [ `click`, `input`, `change` ],
                 recorded: [],
-                skip: false
+                skip: false,
+                state: ``
               })
 
               routes[routeIndex] = { ...routes[routeIndex], tests }
@@ -331,7 +332,7 @@ const Editor = ({ store }) => {
                 }
 
                 routes[routeIndex] = route
-                route.state = undefined
+                route.state = ``
                 route.tests = route.tests.map((test, index) => {
                   if (test.skip || !test.recorded.length) {
                     return test
@@ -345,10 +346,10 @@ const Editor = ({ store }) => {
                     ...test,
                     recorded: test.recorded.map(recordedItem => ({
                       ...recordedItem,
-                      state: undefined,
-                      error: undefined
+                      state: ``,
+                      error: null
                     })),
-                    state: undefined
+                    state: ``
                   }
                 })
 

@@ -162,7 +162,7 @@ const Route = styled(({
       }
 
       routes[index] = route
-      route.state = undefined
+      route.state = ``
       route.tests = route.tests.map((test, index) => {
         if (test.skip || !test.recorded.length) {
           return test
@@ -176,10 +176,10 @@ const Route = styled(({
           ...test,
           recorded: test.recorded.map(recordedItem => ({
             ...recordedItem,
-            state: undefined,
-            error: undefined
+            state: ``,
+            error: null
           })),
-          state: undefined
+          state: ``
         }
       })
 
@@ -344,7 +344,7 @@ const Route = styled(({
 
             <UI.Button backgroundColor='red' onClick={() => {
               setIsErasing(false)
-              updateRoute({ index, updates: { tests: [], state: undefined } })
+              updateRoute({ index, updates: { tests: [], state: `` } })
             }}>
               <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
               <span>Erase</span>

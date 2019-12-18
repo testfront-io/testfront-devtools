@@ -125,7 +125,8 @@ const Editor = () => {
                   exact: false,
                   strict: false,
                   skip: false,
-                  tests: []
+                  tests: [],
+                  state: ``
                 })
 
                 setAutoFocusIndex(routes.length - 1)
@@ -220,13 +221,13 @@ const Editor = () => {
                               ...test,
                               recorded: test.recorded.map(recordedItem => ({
                                 ...recordedItem,
-                                state: undefined,
-                                error: undefined
+                                state: ``,
+                                error: null
                               })),
-                              state: undefined
+                              state: ``
                             }
                           }),
-                          state: undefined
+                          state: ``
                         }
                       })
 
@@ -250,7 +251,7 @@ const Editor = () => {
                           allTests: true
                         },
 
-                        state: undefined
+                        state: ``
                       }
                     })}>
                       <span>Run All Tests</span>

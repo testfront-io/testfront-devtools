@@ -348,26 +348,32 @@ const Provider = ({ children }) => {
             if (store.data.routes[routeIndex] !== route) {
               route.tests.forEach((test, testIndex) => {
                 if (store.data.routes[routeIndex].tests[testIndex] !== test) {
-                  if (!test.recorded.some(recordedItem => recordedItem.state !== `PASSED`)) {
+                  if (test.recorded.length > 0 && !test.recorded.some(recordedItem => recordedItem.state !== `PASSED`)) {
                     test.state = `PASSED`
                   } else if (test.recorded.some(recordedItem => recordedItem.state === `FAILED`)) {
                     test.state = `FAILED`
+                  } else {
+                    test.state = ``
                   }
                 }
               })
 
-              if (!route.tests.some(test => !test.skip && test.state !== `PASSED`)) {
+              if (route.tests.length > 0 && !route.tests.some(test => !test.skip && test.recorded.length > 0 && test.state !== `PASSED`)) {
                 route.state = `PASSED`
-              } else if (route.tests.some(test => !test.skip && test.state === `FAILED`)) {
+              } else if (route.tests.some(test => !test.skip && test.recorded.length > 0 && test.state === `FAILED`)) {
                 route.state = `FAILED`
+              } else {
+                route.state = ``
               }
             }
           })
 
-          if (!nextStore.data.routes.some(route => !route.skip && route.state !== `PASSED`)) {
+          if (nextStore.data.routes.length > 0 && !nextStore.data.routes.some(route => !route.skip && route.state !== `PASSED`)) {
             nextStore.data.state = `PASSED`
           } else if (nextStore.data.routes.some(route => !route.skip && route.state === `FAILED`)) {
             nextStore.data.state = `FAILED`
+          } else {
+            nextStore.data.state = ``
           }
         }
 
