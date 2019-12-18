@@ -169,6 +169,10 @@ const Combo = styled(({
       transition: all 0.25s ease-in-out;
     }
 
+    &:hover ~ span {
+      color: inherit;
+    }
+
     &:focus {
       ~ ul {
         display: block;

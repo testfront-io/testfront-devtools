@@ -198,6 +198,10 @@ const Input = styled(({
       transition: all 0.25s ease-in-out;
     }
 
+    &:hover ~ span {
+      color: inherit;
+    }
+
     &:focus ~ span {
       color: ${({ theme }) => theme.colors.primary};
       text-shadow: 0 0 ${({ theme }) => theme.colors.primary};
