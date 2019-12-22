@@ -8,7 +8,7 @@ const devToolConnections = {}
 chrome.runtime.onConnect.addListener((devToolConnection) => {
   const listener = (message, sender, sendResponse) => {
     switch (message.command) {
-      case `init`:
+      case `initialize`:
         devToolConnections[message.tabId] = devToolConnection
         chrome.tabs.executeScript(message.tabId, { file: `content.js` })
         return

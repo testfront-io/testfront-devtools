@@ -6,7 +6,7 @@ const App = () => (
   <HashRouter>
     <Switch>
       <Route exact path='/'>
-        <Layouts.Routes />
+        <Layouts.Editor />
       </Route>
     </Switch>
   </HashRouter>

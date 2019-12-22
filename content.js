@@ -1,22 +1,224 @@
 /* global chrome */
-const eventListeners = {}
 
-let isRecording = false
-let isTesting = false
+const IDLE = `IDLE`
+const RECORDING = `RECORDING`
+const TESTING = `TESTING`
 
-let snapshotSelector = `html`
-let snapshotHtml = ``
+const UNTESTED = `UNTESTED`
+const PASSED = `PASSED`
+const FAILED = `FAILED`
 
-let recorded = []
+/**
+ * For easier replication, this store resembles the `store.data` object created by `React.useState`
+ * in the dev tools' `Provider` component, but it doesn't work like `React.useState`.
+ * The data relevant to this content script is initialized below.
+ */
+let store = {
+  state: IDLE,
 
+  testGroupIndex: -1,
+  testIndex: -1,
+  frameIndex: -1,
+
+  allTestGroups: false,
+  allTests: false,
+
+  data: {
+    state: UNTESTED,
+
+    testGroups: [],
+
+    timeLimits: {
+      simulateEvent: 2000,
+      compareHtml: 2000
+    }
+  }
+}
+
+/**
+ * Updates the store by extending it. Also extends `store.data` if `updates.data` is provided.
+ *
+ * If `store.state` is changed to RECORDING,
+ * sets necessary flags to send the first snapshot
+ * and sets the necessary event listeners for the current test.
+ *
+ * If `store.state` is changed to not RECORDING,
+ * unsets the event listeners.
+ */
+const updateStore = updates => {
+  const startRecording = store.state !== RECORDING && updates.state === RECORDING
+  const stopRecording = store.state === RECORDING && updates.state && updates.state !== RECORDING
+
+  if (updates.data) {
+    updates.data = {
+      ...store.data,
+      ...updates.data
+    }
+  }
+
+  store = {
+    ...store,
+    ...updates
+  }
+
+  if (startRecording) {
+    currentHtml = ``
+    documentHasMutated = true
+    setEventListeners(
+      store.data
+        .testGroups[store.testGroupIndex]
+        .tests[store.testIndex]
+        .eventTypes
+    )
+  } else if (stopRecording) {
+    setEventListeners([])
+  }
+}
+
+/**
+ * Adds the `frame` to the current test and sends the same `frame` to dev tools.
+ * @param {object} frame
+ */
+const addFrame = frame => {
+  const { state, testGroupIndex, testIndex } = store
+
+  if (state !== RECORDING) {
+    return
+  }
+
+  const data = {}
+  const testGroups = [ ...store.data.testGroups ]
+  const testGroup = { ...testGroups[testGroupIndex] }
+  const tests = [ ...testGroup.tests ]
+  const test = { ...tests[testIndex] }
+  const frames = [ ...test.frames ]
+
+  frames.push(frame)
+  test.frames = frames
+  tests[testIndex] = test
+  testGroup.tests = tests
+  testGroups[testGroupIndex] = testGroup
+  data.testGroups = testGroups
+
+  updateStore({ data })
+
+  chrome.runtime.sendMessage({ command: `addFrame`, frame })
+}
+
+/**
+ * Updates the current frame and sends the same `updates` to dev tools.
+ * If `store.state` is TESTING:
+ *   If `updates.state` is PASSED, increments the indexes to the next testable frame.
+ *   If `updates.state` is FAILED, stops testing.
+ *   Updates the frame's parent `test` and `testGroup` as necessary.
+ * @param {object} updates
+ */
+const updateFrame = updates => {
+  let { state, testGroupIndex, testIndex, frameIndex } = store
+  const { allTestGroups, allTests } = store
+
+  const data = {}
+  const testGroups = [ ...store.data.testGroups ]
+  const testGroup = { ...testGroups[testGroupIndex] }
+  const tests = [ ...testGroup.tests ]
+  const test = { ...tests[testIndex] }
+  const frames = [ ...test.frames ]
+  const frame = { ...frames[frameIndex], ...updates }
+
+  const incrementFrameIndex = () => {
+    frameIndex++
+
+    if (!frames[frameIndex]) {
+      test.state = PASSED
+
+      if (tests.every(test => test.state === PASSED)) {
+        testGroup.state = PASSED
+      }
+
+      if (testGroups.every(testGroup => testGroup.state === PASSED)) {
+        data.state = PASSED
+      }
+
+      if (allTests) {
+        frameIndex = 0
+        incrementTestIndex()
+      } else {
+        stopTesting()
+      }
+    }
+  }
+
+  const incrementTestIndex = () => {
+    const testGroup = testGroups[testGroupIndex]
+    const tests = testGroup.tests
+    const test = tests[++testIndex]
+
+    if (!test) {
+      if (allTestGroups) {
+        incrementTestGroupIndex()
+      } else {
+        stopTesting()
+      }
+    } else if (test.skip || !test.frames.length) {
+      incrementTestIndex()
+    }
+  }
+
+  const incrementTestGroupIndex = () => {
+    const testGroup = testGroups[++testGroupIndex]
+
+    if (!testGroup) {
+      stopTesting()
+    } else if (testGroup.skip) {
+      incrementTestGroupIndex()
+    } else {
+      testIndex = -1
+      incrementTestIndex()
+    }
+  }
+
+  const stopTesting = () => {
+    state = IDLE
+    testGroupIndex = -1
+    testIndex = -1
+    frameIndex = -1
+  }
+
+  frames[frameIndex] = frame
+  test.frames = frames
+  tests[testIndex] = test
+  testGroup.tests = tests
+  testGroups[testGroupIndex] = testGroup
+  data.testGroups = testGroups
+
+  if (state === TESTING) {
+    if (updates.state === PASSED) {
+      incrementFrameIndex()
+    } else if (updates.state === FAILED) {
+      test.state = FAILED
+      testGroup.state = FAILED
+      data.state = FAILED
+      stopTesting()
+    }
+  }
+
+  updateStore({
+    state,
+    testGroupIndex,
+    testIndex,
+    frameIndex,
+    data
+  })
+
+  chrome.runtime.sendMessage({ command: `updateFrame`, updates })
+}
+
+/**
+ * Keep track of timeouts.
+ */
 const timeouts = {
   simulateEvent: -1,
   compareHtml: -1
-}
-
-const timeLimits = {
-  simulateEvent: 2000,
-  compareHtml: 2000
 }
 
 /**
@@ -31,25 +233,99 @@ const clearTimeouts = (keys = Object.keys(timeouts)) => {
 }
 
 /**
- * Track document mutations.
+ * Keep track of event listeners.
  */
-let documentHasMutated = true
-const documentObserver = new MutationObserver(() => documentHasMutated = true)
-documentObserver.observe(document.documentElement,  { attributes: true, childList: true, subtree: true })
+const eventListeners = {}
 
 /**
- * Main loop for handling current state and relaying to devtools.
+ * Sets the event listeners for the provided `eventTypes`.
+ * @param {array} eventTypes
  */
-const main = () => {
-  if (isRecording) {
-    record()
-  } else if (isTesting) {
-    test()
+const setEventListeners = eventTypes => {
+  for (let eventType in eventListeners) {
+    removeEventListener(eventType)
   }
 
-  window.requestAnimationFrame(main)
+  for (let eventType of eventTypes) {
+    addEventListener(eventType)
+  }
 }
-window.requestAnimationFrame(main)
+
+/**
+ * Removes the existing event listener for the provided `eventType`.
+ * @param {string} eventType
+ */
+const removeEventListener = eventType => {
+  if (eventListeners[eventType]) {
+    document.removeEventListener(eventType, eventListeners[eventType], true)
+    delete eventListeners[eventType]
+  }
+}
+
+/**
+ * Adds an event listener for the provided `eventType` and sends the `eventType` and `targetSelector` when triggered.
+ * @param {string} eventType
+ */
+const addEventListener = eventType => {
+  if (specialEventListeners[eventType]) {
+    eventListeners[eventType] = specialEventListeners[eventType]
+  } else {
+    eventListeners[eventType] = (event) => {
+      const targetSelector = getTargetSelector(event.target)
+
+      if (targetSelector) {
+        addFrame({ eventType, targetSelector })
+      }
+    }
+  }
+
+  document.addEventListener(eventType, eventListeners[eventType], true)
+}
+
+/**
+ * Some events need special listeners.
+ */
+const specialEventListeners = {
+  input: event => {
+    const eventType = `input`
+    const targetSelector = getTargetSelector(event.target)
+    const value = event.target.value || ``
+    const id = event.target.id || undefined
+    const name = event.target.getAttribute(`name`) || undefined
+    const placeholder = event.target.getAttribute(`placeholder`) || undefined
+
+    if (targetSelector) {
+      addFrame({
+        eventType,
+        targetSelector,
+        value,
+        id,
+        name,
+        placeholder
+      })
+    }
+  },
+
+  change: event => {
+    const eventType = `change`
+    const targetSelector = getTargetSelector(event.target)
+    const value = event.target.value || ``
+    const id = event.target.id || undefined
+    const name = event.target.getAttribute(`name`) || undefined
+    const placeholder = event.target.getAttribute(`placeholder`) || undefined
+
+    if (targetSelector) {
+      addFrame({
+        eventType,
+        targetSelector,
+        value,
+        id,
+        name,
+        placeholder
+      })
+    }
+  }
+}
 
 /**
  * Gets the simplest element selector for some `element`.
@@ -103,6 +379,9 @@ const getSimplestElementSelector = (element, attributes = [`name`, `placeholder`
  * @returns {string}
  */
 const getTargetSelector = (element) => {
+  const { testGroupIndex, testIndex } = store
+  const { testGroups } = store.data
+  const { snapshotSelector } = testGroups[testGroupIndex].tests[testIndex]
   const snapshotContainer = document.querySelector(snapshotSelector)
   const targetSelector = []
 
@@ -121,160 +400,42 @@ const getTargetSelector = (element) => {
 }
 
 /**
- * Some events need special listeners.
+ * Simulates an event based on the `frame`.
+ * @param {object} frame
+ * @returns {boolean} `true` if the event was successfully simulated
  */
-const specialEventListeners = {
-  input: event => {
-    const eventType = `input`
-    const targetSelector = getTargetSelector(event.target)
-    const value = event.target.value || ``
-    const id = event.target.id || undefined
-    const name = event.target.getAttribute(`name`) || undefined
-    const placeholder = event.target.getAttribute(`placeholder`) || undefined
+const simulateEvent = frame => {
+  const { eventType, targetSelector } = frame
+  const element = specialEventSimulator[eventType]
+    ? specialEventSimulator[eventType](frame)
+    : document.querySelector(targetSelector)
 
-    if (targetSelector) {
-      chrome.runtime.sendMessage({
-        command: `pushRecordedItem`,
-        recordedItem: {
-          eventType,
-          targetSelector,
-          value,
-          id,
-          name,
-          placeholder
-        }
-      })
-    }
-  },
-
-  change: event => {
-    const eventType = `change`
-    const targetSelector = getTargetSelector(event.target)
-    const value = event.target.value || ``
-    const id = event.target.id || undefined
-    const name = event.target.getAttribute(`name`) || undefined
-    const placeholder = event.target.getAttribute(`placeholder`) || undefined
-
-    if (targetSelector) {
-      chrome.runtime.sendMessage({
-        command: `pushRecordedItem`,
-        recordedItem: {
-          eventType,
-          targetSelector,
-          value,
-          id,
-          name,
-          placeholder
-        }
-      })
-    }
+  if (!element) {
+    console.warn(`TestFront could not find element:`, { eventType, targetSelector })
+    return false
   }
-}
 
-/**
- * Adds an event listener for the provided `eventType` and sends the `eventType` and `targetSelector` when triggered.
- * @param {string} eventType
- */
-const addEventListener = eventType => {
-  if (specialEventListeners[eventType]) {
-    eventListeners[eventType] = specialEventListeners[eventType]
+  if (typeof element[eventType] === `function`) {  // TODO should we actually do it this way?
+    console.log(`simulatedEvent by element.${eventType}() for`, { frame })
+    element[eventType]()
+    return true
+  }
+
+  let event
+
+  if (document.createEvent) {
+    event = document.createEvent(`HTMLEvents`)
+    event.initEvent(eventType, true, true)
+    event.eventName = eventType
+    element.dispatchEvent(event)
   } else {
-    eventListeners[eventType] = (event) => {
-      const targetSelector = getTargetSelector(event.target)
-
-      if (targetSelector) {
-        chrome.runtime.sendMessage({
-          command: `pushRecordedItem`,
-          recordedItem: {
-            eventType,
-            targetSelector
-          }
-        })
-      }
-    }
+    event = document.createEventObject()
+    event.eventName = eventType
+    event.eventType = eventType
+    element.fireEvent(`on${event.eventType}`, event);
   }
 
-  document.addEventListener(eventType, eventListeners[eventType], true)
-}
-
-/**
- * Removes the existing event listener for the provided `eventType`.
- * @param {string} eventType
- */
-const removeEventListener = eventType => {
-  if (eventListeners[eventType]) {
-    document.removeEventListener(eventType, eventListeners[eventType], true)
-    delete eventListeners[eventType]
-  }
-}
-
-/**
- * Sets event listeners for the provided `eventTypes`.
- * @param {array} eventTypes
- */
-const setEventListeners = eventTypes => {
-  for (let eventType in eventListeners) {
-    removeEventListener(eventType)
-  }
-
-  for (let eventType of eventTypes) {
-    addEventListener(eventType)
-  }
-}
-
-/**
- * Sends the snapshot `html` to devtools, if changed.
- */
-const record = () => {
-  if (!documentHasMutated) {
-    return
-  }
-  documentHasMutated = false
-
-  const html = document.querySelector(snapshotSelector).innerHTML
-
-  if (html !== snapshotHtml) {
-    snapshotHtml = html
-
-    chrome.runtime.sendMessage({
-      command: `pushRecordedItem`,
-      recordedItem: {
-        html
-      }
-    })
-  }
-}
-
-/**
- * Starts recording snapshots and events based on the provided `message.test`.
- * @param {object} message
- */
-const startRecording = (message) => {
-  const html = document.querySelector(message.test.snapshotSelector).innerHTML
-
-  chrome.runtime.sendMessage({
-    command: `pushRecordedItem`,
-    recordedItem: {
-      html
-    }
-  })
-
-  snapshotSelector = message.test.snapshotSelector
-  snapshotHtml = html
-  isRecording = true
-  isTesting = false
-  clearTimeouts()
-  setEventListeners(message.test.eventTypes)
-}
-
-/**
- * Stops recording by clearing event listeners and timeouts.
- */
-const stopRecording = () => {
-  snapshotHtml = document.querySelector(snapshotSelector).innerHTML
-  isRecording = false
-  clearTimeouts()
-  setEventListeners([])
+  return true
 }
 
 /**
@@ -303,134 +464,84 @@ const specialEventSimulator = {
 }
 
 /**
- * Simulates an event on the target element.
- * @param {object} recordedItem
- * @returns {boolean} `true` if the event was successfully simulated
+ * Observe document mutations.
  */
-const simulateEvent = recordedItem => {
-  const { eventType, targetSelector } = recordedItem
-  const element = specialEventSimulator[eventType]
-    ? specialEventSimulator[eventType](recordedItem)
-    : document.querySelector(targetSelector)
+let documentHasMutated = true
+const documentObserver = new MutationObserver(() => documentHasMutated = true)
+documentObserver.observe(document.documentElement,  { attributes: true, childList: true, subtree: true })
 
-  if (!element) {
-    console.warn(`TestFront could not find element:`, { eventType, targetSelector })
-    return false
+/**
+ * Keep track of the current `html`.
+ */
+let currentHtml = ``
+
+/**
+ * Pushes the current `html` as a `frame` to devtools, if changed.
+ */
+const record = () => {
+  if (!documentHasMutated) {
+    return
   }
+  documentHasMutated = false
 
-  if (typeof element[eventType] === `function`) {  // TODO should we actually do it this way?
-    console.log(`simulatedEvent by element.${eventType}() for`, { recordedItem })
-    element[eventType]()
-    return true
+  const { testGroupIndex, testIndex } = store
+  const { testGroups } = store.data
+  const { snapshotSelector } = testGroups[testGroupIndex].tests[testIndex]
+  const html = document.querySelector(snapshotSelector).innerHTML
+
+  if (html !== currentHtml) {
+    currentHtml = html
+    addFrame({ html })
   }
-
-  let event
-
-  if (document.createEvent) {
-    event = document.createEvent(`HTMLEvents`)
-    event.initEvent(eventType, true, true)
-    event.eventName = eventType
-    element.dispatchEvent(event)
-  } else {
-    event = document.createEventObject()
-    event.eventName = eventType
-    event.eventType = eventType
-    element.fireEvent(`on${event.eventType}`, event);
-  }
-
-  return true
 }
 
 /**
- * Tests the `recorded` array of events and html.
+ * Tests the recorded `frames`.
  */
 const test = () => {
-  const recordedItem = recorded[0]
+  const { testGroupIndex, testIndex, frameIndex } = store
+  const { testGroups, timeLimits } = store.data
+  const { frames, snapshotSelector } = testGroups[testGroupIndex].tests[testIndex]
+  const frame = frames[frameIndex]
 
-  if (!recordedItem) {
-    stopTesting()
-    return
-  }
+  if (typeof frame.html !== `undefined`) {
+    currentHtml = document.querySelector(snapshotSelector).innerHTML
 
-  if (typeof recordedItem.html !== `undefined`) {
-    snapshotHtml = document.querySelector(snapshotSelector).innerHTML
-
-    if (snapshotHtml === recordedItem.html) {
-      recorded.shift()
+    if (currentHtml === frame.html) {
       clearTimeouts([`compareHtml`])
-
-      chrome.runtime.sendMessage({
-        command: `setRecordedItemResult`,
-        result: {
-          state: `PASSED`
-        }
-      })
+      updateFrame({ state: PASSED })
     } else if (timeouts.compareHtml < 0) {
       timeouts.compareHtml = setTimeout(() => {
         timeouts.compareHtml = -1
-        stopTesting()
-
-        chrome.runtime.sendMessage({
-          command: `setRecordedItemResult`,
-          result: {
-            state: `FAILED`,
-            error: {
-              html: snapshotHtml
-            }
-          }
-        })
+        updateFrame({ state: FAILED, error: { html: currentHtml } })
       }, timeLimits.compareHtml)
     }
   } else {
-    if (simulateEvent(recordedItem)) {
-      recorded.shift()
+    if (simulateEvent(frame)) {
       clearTimeouts([`simulateEvent`])
-
-      chrome.runtime.sendMessage({
-        command: `setRecordedItemResult`,
-        result: {
-          state: `PASSED`
-        }
-      })
+      updateFrame({ state: PASSED })
     } else if (timeouts.simulateEvent < 0) {
       timeouts.simulateEvent = setTimeout(() => {
         timeouts.simulateEvent = -1
-        stopTesting()
-
-        chrome.runtime.sendMessage({
-          command: `setRecordedItemResult`,
-          result: {
-            state: `FAILED`,
-            error: {
-              message: `Target not found`
-            }
-          }
-        })
+        updateFrame({ state: FAILED, error: { message: `Target not found` } })
       }, timeLimits.simulateEvent)
     }
   }
 }
 
 /**
- * Starts the test.
- * @param {object} message
+ * Main loop for handling current state and relaying to devtools.
  */
-const startTesting = (message) => {
-  recorded = message.test.recorded
-  snapshotSelector = message.test.snapshotSelector
-  snapshotHtml = document.querySelector(snapshotSelector).innerHTML
-  clearTimeouts()
-  isRecording = false
-  isTesting = true
-}
+const main = () => {
+  if (store.state === RECORDING) {
+    record()
+  } else if (store.state === TESTING) {
+    test()
+  }
 
-/**
- * Stops the test.
- */
-const stopTesting = () => {
-  clearTimeouts()
-  isTesting = false
+  window.requestAnimationFrame(main)
 }
+window.requestAnimationFrame(main)
 
 /**
  * Handle messages from devtools.
@@ -438,22 +549,18 @@ const stopTesting = () => {
 // eslint-disable-next-line no-unused-vars
 const handleDevToolsMessage = (message) => {
   switch (message.command) {
-    case `startRecording`:
-      return startRecording(message)
-
-    case `stopRecording`:
-      return stopRecording(message)
-
-    case `startTesting`:
-      return startTesting(message)
-
-    case `stopTesting`:
-      return stopTesting(message)
+    case `updateStore`:
+      return updateStore(message.updates)
 
     case `consoleLog`:
-      return console.log(message)
+      return console.log(`handleDevToolsMessage:`, message)
 
     default:
       return console.warn(`Unrecognized command:`, message)
   }
 }
+
+/**
+ * Get initial store state from dev tools.
+ */
+chrome.runtime.sendMessage({ command: `initializeContentStore` })

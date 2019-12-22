@@ -1,11 +1,11 @@
 import React from 'react'
 import styled from 'styled-components'
 
-const EventSelection = styled(({ eventTypesGroup, eventTypes, index, updateTest, ...props }) => {
+const EventSelection = styled(({ store, testGroupIndex, testIndex, eventTypes, eventTypesGroup, eventTypesGroupIndex, ...props }) => {
   const checkedNone = !eventTypesGroup[1].filter(eventType => eventTypes.includes(eventType)).length
 
   return (
-    <details { ...props }>
+    <details onToggle={event => event.stopPropagation()} { ...props }>
       <summary>
         <span>{eventTypesGroup[0]}</span>
 
@@ -14,15 +14,17 @@ const EventSelection = styled(({ eventTypesGroup, eventTypes, index, updateTest,
           checked={!checkedNone}
           onChange={event => {
             if (checkedNone) {
-              updateTest({
-                index,
+              store.updateTest({
+                testGroupIndex,
+                testIndex,
                 updates: {
                   eventTypes: eventTypes.concat(eventTypesGroup[1])
                 }
               })
             } else {
-              updateTest({
-                index,
+              store.updateTest({
+                testGroupIndex,
+                testIndex,
                 updates: {
                   eventTypes: eventTypes.filter(
                     eventType => !eventTypesGroup[1].includes(eventType)
@@ -53,7 +55,13 @@ const EventSelection = styled(({ eventTypesGroup, eventTypes, index, updateTest,
                 eventTypes.splice(eventTypeIndex, 1)
               }
 
-              updateTest({ index, updates: { eventTypes } })
+              store.updateTest({
+                testGroupIndex,
+                testIndex,
+                updates: {
+                  eventTypes
+                }
+              })
             }}
           />
         </label>

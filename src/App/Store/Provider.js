@@ -2,7 +2,18 @@
 import React from 'react'
 import * as API from '../../API'
 import Context from './Context'
+import * as UI from '../../UI'
 import tab from '../../tab'
+
+import {
+  IDLE,
+  RECORDING,
+  TESTING,
+
+  UNTESTED,
+  PASSED,
+  FAILED
+} from '../../constants'
 
 /**
  * Promisified versions of `chrome.storage.local.get` and `set`.
@@ -20,182 +31,193 @@ const local = {
 }
 
 /**
- * Copies an object and assigns the provided `value` to each key.
- * @param {object} object
- * @param {any} value
- */
-const copyObjectWithValue = (object, value) => {
-  const copy = {}
-
-  for (let key in object) {
-    copy[key] = value
-  }
-
-  return copy
-}
-
-/**
- * Adds the provided snapshot or event to the test at the current `testIndex`.
+ * Adds the `message.frame` to the current test.
  * @param {object} store
  * @param {object} message
  */
-const pushRecordedItem = ({ store, message }) => {
-  const { routeIndex, testIndex } = store.data.recording
+const addFrame = ({ store, message }) => {
+  const { frame } = message
 
-  store.setData(data => {
-    const routes = [ ...data.routes ]
+  store.updateStore(store => {
+    const { state, testGroupIndex, testIndex } = store
 
-    if (!routes[routeIndex]) {
+    if (state !== RECORDING) {
       return
     }
 
-    const tests = [ ...routes[routeIndex].tests ]
+    const data = {}
+    const testGroups = [ ...store.data.testGroups ]
+    const testGroup = { ...testGroups[testGroupIndex] }
+    const tests = [ ...testGroup.tests ]
+    const test = { ...tests[testIndex] }
+    const frames = [ ...test.frames ]
 
-    if (!tests[testIndex]) {
-      return
-    }
+    frames.push(frame)
+    test.frames = frames
+    tests[testIndex] = test
+    testGroup.tests = tests
+    testGroups[testGroupIndex] = testGroup
+    data.testGroups = testGroups
 
-    tests[testIndex] = {
-      ...tests[testIndex],
-      recorded: [
-        ...(tests[testIndex].recorded || []),
-        message.recordedItem
-      ]
-    }
-
-    routes[routeIndex] = { ...routes[routeIndex], tests }
-
-    return { routes }
+    return { data }
   })
 }
 
 /**
- * Sets the `message.result.state` and `message.result.error` (if provided) for the current test item.
+ * Updates the current frame.
+ * If `store.state` is TESTING:
+ *   If `updates.state` is PASSED, increments the indexes to the next testable frame.
+ *   If `updates.state` is FAILED, stops testing.
+ *   Updates the frame's parent `test` and `testGroup` as necessary.
  * @param {object} store
  * @param {object} message
  */
-const setRecordedItemResult = ({ store, message }) => {
-  const { state, error } = message.result
+const updateFrame = ({ store, message }) => {
+  const { updates } = message
 
-  store.setData(data => {
-    let { testing } = data
-    let { routeIndex, testIndex, recordedItemIndex, allRoutes, allTests } = testing
-    const routes = data.routes && [ ...data.routes ]
-    const route = routes && routes[routeIndex] && { ...routes[routeIndex] }
-    const tests = route && route.tests && [ ...route.tests ]
-    const test = tests && tests[testIndex] && { ...tests[testIndex] }
-    const recorded = test && test.recorded && [ ...test.recorded ]
+  store.updateStore(store => {
+    let { state, testGroupIndex, testIndex, frameIndex } = store
+    const { allTestGroups, allTests } = store
 
-    const stopTesting = () => {
-      tab.sendMessage({ command: `stopTesting` })
+    const data = {}
+    const testGroups = [ ...store.data.testGroups ]
+    const testGroup = { ...testGroups[testGroupIndex] }
+    const tests = [ ...testGroup.tests ]
+    const test = { ...tests[testIndex] }
+    const frames = [ ...test.frames ]
+    const frame = { ...frames[frameIndex], ...updates }
 
-      testing = {
-        routeIndex: -1,
-        testIndex: -1,
-        recordedItemIndex: -1,
-        allRoutes: false,
-        allTests: false
-      }
-    }
+    frames[frameIndex] = frame
+    test.frames = frames
+    tests[testIndex] = test
+    testGroup.tests = tests
+    testGroups[testGroupIndex] = testGroup
+    data.testGroups = testGroups
 
-    if (!recorded || !recorded[recordedItemIndex]) {
-      return
-    }
+    const incrementFrameIndex = () => {
+      frameIndex++
 
-    recorded[recordedItemIndex] = {
-      ...recorded[recordedItemIndex],
-      state,
-      error
-    }
+      if (!frames[frameIndex]) {
+        test.state = PASSED
 
-    tests[testIndex] = {
-      ...test,
-      recorded
-    }
+        if (tests.every(test => test.state === PASSED)) {
+          testGroup.state = PASSED
+        }
 
-    routes[routeIndex] = {
-      ...route,
-      tests
-    }
+        if (testGroups.every(testGroup => testGroup.state === PASSED)) {
+          data.state = PASSED
+        }
 
-    if (state === `PASSED`) {
-      if (recorded[++recordedItemIndex]) {
-        // Test the next recorded item.
-        testing = { ...testing, recordedItemIndex }
-      } else {
-        // Reached the end of the recorded items for the current test.
         if (allTests) {
-          recordedItemIndex = 0
-
-          // Find the next valid test.
-          while (tests[++testIndex]) {
-            if (!tests[testIndex].skip && tests[testIndex].recorded.length) {
-              break
-            }
-          }
-
-          if (tests[testIndex]) {
-            // Perform the next test.
-            testing = { ...testing, testIndex, recordedItemIndex }
-          } else {
-            // Reached the end of the tests for the current route.
-            if (allRoutes) {
-              // Find the next valid route and test.
-              while (routes[++routeIndex]) {
-                if (!routes[routeIndex].skip) {
-                  testIndex = -1
-
-                  while (tests[++testIndex]) {
-                    if (!tests[testIndex].skip && tests[testIndex].recorded.length) {
-                      break
-                    }
-                  }
-
-                  if (routes[routeIndex].tests[testIndex]) {
-                    break
-                  }
-                }
-              }
-
-              if (routes[routeIndex]) {
-                // Perform the next test.
-                testing = { ...testing, routeIndex, testIndex, recordedItemIndex }
-              } else {
-                stopTesting()
-              }
-            } else {
-              stopTesting()
-            }
-          }
+          frameIndex = 0
+          incrementTestIndex()
         } else {
           stopTesting()
         }
       }
-    } else {
-      stopTesting()
+    }
+
+    const incrementTestIndex = () => {
+      const testGroup = testGroups[testGroupIndex]
+      const tests = testGroup.tests
+      const test = tests[++testIndex]
+
+      if (!test) {
+        if (allTestGroups) {
+          incrementTestGroupIndex()
+        } else {
+          stopTesting()
+        }
+      } else if (test.skip || !test.frames.length) {
+        incrementTestIndex()
+      }
+    }
+
+    const incrementTestGroupIndex = () => {
+      const testGroup = testGroups[++testGroupIndex]
+
+      if (!testGroup) {
+        stopTesting()
+      } else if (testGroup.skip) {
+        incrementTestGroupIndex()
+      } else {
+        testIndex = -1
+        incrementTestIndex()
+      }
+    }
+
+    const stopTesting = () => {
+      state = IDLE
+      testGroupIndex = -1
+      testIndex = -1
+      frameIndex = -1
+    }
+
+    if (state === TESTING) {
+      if (updates.state === PASSED) {
+        incrementFrameIndex()
+      } else if (updates.state === FAILED) {
+        test.state = FAILED
+        testGroup.state = FAILED
+        data.state = FAILED
+        stopTesting()
+      }
     }
 
     return {
-      routes,
-      testing
+      state,
+      testGroupIndex,
+      testIndex,
+      frameIndex,
+      data
     }
   })
 }
 
 /**
- * Run when initializing the store.
+ * Gets the store as relevant to the content script.
+ * @param {object} store
  */
-const initialize = (store) => {
-  const ref = { store }
+const getStoreForContentScript = store => ({
+  state: store.state,
+
+  testGroupIndex: store.testGroupIndex,
+  testIndex: store.testIndex,
+  frameIndex: store.frameIndex,
+
+  allTestGroups: store.allTestGroups,
+  allTests: store.allTests,
+
+  data: store.data
+})
+
+/**
+ * Updates the content script's store.
+ * @param {object} store
+ */
+const updateContentStore = store => {
+  store = getStoreForContentScript(store)
+  tab.sendMessage({ command: `updateStore`, updates: store })
+}
+
+/**
+ * The tab needs a reference to the current `store` within its `onMessage` handlers.
+ */
+const getTabRef = (store) => {
+  const tabRef = { store }
 
   tab.onMessage((message) => {
     switch (message.command) {
-      case `pushRecordedItem`:
-        pushRecordedItem({ store: ref.store, message })
+      case `initializeContentStore`:
+        updateContentStore(tabRef.store)
         break
 
-      case `setRecordedItemResult`:
-        setRecordedItemResult({ store: ref.store, message })
+      case `addFrame`:
+        addFrame({ store: tabRef.store, message })
+        break
+
+      case `updateFrame`:
+        updateFrame({ store: tabRef.store, message })
         break
 
       case `consoleLog`:
@@ -206,316 +228,515 @@ const initialize = (store) => {
     }
   })
 
-  return ref
+  return tabRef
 }
 
 /**
  * Simple key-value store. Uses `chrome.storage.local` by default.
- * Use `set(store => ({ source: 'server' }))` to use with `testfront-extension-server`.
+ * Use `store.updateStore(store => ({ source: 'server' }))` to use with `testfront-extension-server`.
  */
 const Provider = ({ children }) => {
   const [ store, setStore ] = React.useState({
+    tabRef: null,
     isConfigured: false,
     isInitialized: false,
-    initializedRef: null,
+    shouldSaveData: false,
 
     source: `local`,
     serverBaseURL: API.client.defaults.baseURL,
+    status: ``,
+    error: ``,
+
+    state: IDLE,
+
+    testGroupIndex: -1,
+    testIndex: -1,
+    frameIndex: -1,
+
+    allTestGroups: false,
+    allTests: false,
 
     data: {
-      routes: [/*{
+      state: UNTESTED,
+
+      testGroups: [/*{
+        state: UNTESTED,
         description: ``,
         path: `/`, // Matched via react-router's `matchPath` function.
         exact: false,
         strict: false,
         skip: false,
-        state?: ``, // [`PASSED`, `FAILED`]
         tests: [{
+          state: UNTESTED,
           description: ``,
           snapshotSelector: ``,
           eventTypes: [],
-          recorded: [recordedItem.html ? {
+          frames: [frame.html ? {
+            state: UNTESTED,
             html,
-            state?: ``, // [`PASSED`, `FAILED`]
             error?: {
               html
             }
           } : {
+            state: UNTESTED,
             eventType,
             targetSelector,
             value?,
             id?,
             name?,
             placeholder?,
-            state?: ``, // [`PASSED`, `FAILED`]
             error?: {
               message: ``
             }
-          }],
-          state?: ``, // [`PASSED`, `FAILED`]
+          }]
         }]
       }*/],
 
-      viewing: {
-        routeIndex: -1,
-      },
-
-      recording: {
-        routeIndex: -1,
-        testIndex: -1
-      },
-
-      testing: {
-        routeIndex: -1,
-        testIndex: -1,
-        recordedItemIndex: -1,
-        allRoutes: false,
-        allTests: false
-      },
-
-      state: ``
+      timeLimits: {
+        simulateEvent: 2000,
+        compareHtml: 2000
+      }
     },
 
-    status: {},
-    error: {},
+    updateStore: getUpdates => setStore(store => {
+      const updates = getUpdates(store)
 
-    getData: async (key) => {
-      if (typeof key === `object`) {
-        return (Array.isArray(key) ? key : Object.keys(key)).forEach(key => store.getData(key))
+      if (!updates) {
+        return store
       }
 
-      setStore(store => ({
+      if (updates.source && updates.source !== store.source) {
+        local.set({ source: updates.source })
+        updates.isInitialized = false
+        updates.shouldSaveData = true
+        updates.status = ``
+        updates.error ``
+      }
+
+      if (updates.serverBaseURL && updates.serverBaseURL !== store.serverBaseURL) {
+        local.set({ serverBaseURL: updates.serverBaseURL })
+        API.client.defaults.baseURL = store.serverBaseURL
+        updates.isInitialized = false
+        updates.shouldSaveData = true
+        updates.status = ``
+        updates.error ``
+      }
+
+      if (updates.data) {
+        updates.shouldSaveData = true
+
+        updates.data = {
+          ...store.data,
+          ...updates.data
+        }
+      }
+
+      return {
         ...store,
-        status: { ...store.status, [key]: `fetching` }
-      }))
-
-      switch (store.source) {
-        case `server`:
-          try {
-            const value = (await API.client.get(key)).data || store.data[key]
-
-            setStore(store => ({
-              ...store,
-              data: { ...store.data, [key]: value },
-              status: { ...store.status, [key]: `` },
-              error: { ...store.error, [key]: `` }
-            }))
-          } catch (error) {
-            setStore(store => ({
-              ...store,
-              status: { ...store.status, [key]: `` },
-              error: { ...store.error, [key]: API.utilities.getErrorMessage(error) || `unknown` }
-            }))
-          }
-          break
-
-        default:
-          try {
-            const value = await local.get(key) || store.data[key]
-
-            setStore(store => ({
-              ...store,
-              data: { ...store.data, [key]: value },
-              status: { ...store.status, [key]: `` },
-              error: { ...store.error, [key]: `` }
-            }))
-          } catch (error) {
-            setStore(store => ({
-              ...store,
-              status: { ...store.status, [key]: `` },
-              error: { ...store.error, [key]: String(error) || `unknown` }
-            }))
-          }
+        ...updates
       }
+    }),
+
+    startRecording: ({ testGroupIndex, testIndex, frameIndex = -1 }) => {
+      store.updateStore(store => {
+        const updates = {
+          shouldUpdateContentStore: true,
+          state: RECORDING,
+          testGroupIndex,
+          testIndex,
+          frameIndex
+        }
+
+        return updates
+      })
     },
 
-    setData: (dataFunc) => {
-      setStore(store => {
-        const data = dataFunc(store.data)
-
-        if (!data) {
-          return store
+    stopRecording: () => {
+      store.updateStore(store => {
+        const updates = {
+          shouldUpdateContentStore: true,
+          state: IDLE,
+          testGroupIndex: -1,
+          testIndex: -1,
+          frameIndex: -1
         }
 
-        const nextStore = {
-          ...store,
-          data: { ...store.data, ...data },
-          status: { ...store.status, ...copyObjectWithValue(data, `updating`) },
-          error: { ...store.error, ...copyObjectWithValue(data, ``) }
-        }
+        return updates
+      })
+    },
 
-        if (store.data.routes !== nextStore.data.routes) {
-          nextStore.data.routes.forEach((route, routeIndex) => {
-            if (store.data.routes[routeIndex] !== route) {
-              route.tests.forEach((test, testIndex) => {
-                if (store.data.routes[routeIndex].tests[testIndex] !== test) {
-                  if (test.recorded.length > 0 && !test.recorded.some(recordedItem => recordedItem.state !== `PASSED`)) {
-                    test.state = `PASSED`
-                  } else if (test.recorded.some(recordedItem => recordedItem.state === `FAILED`)) {
-                    test.state = `FAILED`
-                  } else {
-                    test.state = ``
-                  }
-                }
-              })
+    startTesting: ({ testGroupIndex = 0, testIndex = 0, frameIndex = 0, allTestGroups = false, allTests = false }) => {
+      store.updateStore(store => {
+        const testGroups = [ ...store.data.testGroups ]
+        let testGroupsChanged = false
 
-              if (route.tests.length > 0 && !route.tests.some(test => !test.skip && test.recorded.length > 0 && test.state !== `PASSED`)) {
-                route.state = `PASSED`
-              } else if (route.tests.some(test => !test.skip && test.recorded.length > 0 && test.state === `FAILED`)) {
-                route.state = `FAILED`
-              } else {
-                route.state = ``
-              }
-            }
-          })
+        const updates = {
+          shouldUpdateContentStore: true,
+          state: TESTING,
 
-          if (nextStore.data.routes.length > 0 && !nextStore.data.routes.some(route => !route.skip && route.state !== `PASSED`)) {
-            nextStore.data.state = `PASSED`
-          } else if (nextStore.data.routes.some(route => !route.skip && route.state === `FAILED`)) {
-            nextStore.data.state = `FAILED`
-          } else {
-            nextStore.data.state = ``
+          testGroupIndex,
+          testIndex,
+          frameIndex,
+
+          allTestGroups,
+          allTests,
+
+          data: {
+            state: UNTESTED,
+            testGroups
           }
         }
 
-        if (
-          store.data.testing !== nextStore.data.testing
-          && (
-            store.data.testing.routeIndex !== nextStore.data.testing.routeIndex
-            || store.data.testing.testIndex !== nextStore.data.testing.testIndex
-          )
-          && nextStore.data.routes[nextStore.data.testing.routeIndex]
-          && nextStore.data.routes[nextStore.data.testing.routeIndex].tests[nextStore.data.testing.testIndex]
-        ) {
-          setTimeout(() => tab.sendMessage({ // TODO find a better way?
-            command: `startTesting`,
-            test: nextStore.data.routes[nextStore.data.testing.routeIndex].tests[nextStore.data.testing.testIndex]
-          }), 10)
-        }
+        for (let testGroup = null; testGroupIndex < testGroups.length; testGroupIndex++) {
+          testGroup = { ...testGroups[testGroupIndex] }
 
-        switch (store.source) {
-          case `server`:
-            Object.keys(data).forEach(async key => {
-              try {
-                await API.client.put(key, nextStore.data[key])
-              } catch (error) {
-                setStore(store => ({
-                  ...store,
-                  status: { ...store.status, [key]: `` },
-                  error: { ...store.error, [key]: API.utilities.getErrorMessage(error) || `unknown` }
-                }))
-              }
-            })
+          if (testGroup.skip && testGroupIndex !== updates.testGroupIndex) {
+            continue
+          }
+
+          const tests = [ ...testGroup.tests ]
+          let testsChanged = false
+
+          for (let test = null; testIndex < tests.length; testIndex++) {
+            test = { ...tests[testIndex] }
+
+            if (test.skip && (testGroupIndex !== updates.testGroupIndex || (allTests && testIndex !== updates.testIndex))) {
+              continue
+            }
+
+            const frames = [ ...test.frames ]
+            let framesChanged = false
+
+            for (let frame = null; frameIndex < frames.length; frameIndex++) {
+              frame = { ...frames[frameIndex] }
+              frame.state = UNTESTED
+              frame.error = undefined
+              frames[frameIndex] = frame
+              framesChanged = true
+            }
+
+            if (framesChanged) {
+              test.frames = frames
+              test.state = UNTESTED
+              tests[testIndex] = test
+              testsChanged = true
+            }
+
+            if (allTests) {
+              frameIndex = 0
+            } else {
+              break
+            }
+          }
+
+          if (testsChanged) {
+            testGroup.tests = tests
+            testGroup.state = UNTESTED
+            testGroups[testGroupIndex] = testGroup
+            testGroupsChanged = true
+          }
+
+          if (allTestGroups) {
+            testIndex = 0
+          } else {
             break
-
-          default:
-            Object.keys(data).forEach(async key => {
-              try {
-                await local.set({ [key]: nextStore.data[key] })
-              } catch (error) {
-                setStore(store => ({
-                  ...store,
-                  status: { ...store.status, [key]: `` },
-                  error: { ...store.error, [key]: String(error) || `unknown` }
-                }))
-              }
-            })
+          }
         }
 
-        return nextStore
+        if (!testGroupsChanged) {
+          return
+        }
+
+        return updates
       })
     },
 
-    set: (valueFunc) => {
-      setStore(store => {
-        const value = valueFunc(store)
-
-        if (!value) {
-          return store
+    stopTesting: () => {
+      store.updateStore(store => {
+        const updates = {
+          shouldUpdateContentStore: true,
+          state: IDLE,
+          testGroupIndex: -1,
+          testIndex: -1,
+          frameIndex: -1
         }
 
-        return {
-          ...store,
-          ...value
-        }
+        return updates
       })
-    }
+    },
+
+    addTestGroup: ({ testGroup = {} } = {}) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups,
+          {
+            state: UNTESTED,
+            path: `/`,
+            exact: false,
+            strict: false,
+            skip: false,
+            tests: [],
+            ...testGroup
+          }
+        ]
+      }
+    })),
+
+    updateTestGroup: ({ testGroupIndex, updates }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          {
+            ...store.data.testGroups[testGroupIndex],
+            ...updates
+          },
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    deleteTestGroup: ({ testGroupIndex }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    addTest: ({ testGroupIndex, test = {} }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          {
+            ...store.data.testGroups[testGroupIndex],
+            tests: [
+              ...store.data.testGroups[testGroupIndex].tests,
+              {
+                state: UNTESTED,
+                description: ``,
+                snapshotSelector: (store.data.testGroups[testGroupIndex].tests[store.data.testGroups[testGroupIndex].tests.length - 1] && store.data.testGroups[testGroupIndex].tests[store.data.testGroups[testGroupIndex].tests.length - 1].snapshotSelector) || `html`,
+                eventTypes: [ `click`, `input`, `change` ],
+                frames: [],
+                skip: false,
+                ...test
+              }
+            ]
+          },
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    updateTest: ({ testGroupIndex, testIndex, updates }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          {
+            ...store.data.testGroups[testGroupIndex],
+            tests: [
+              ...store.data.testGroups[testGroupIndex].tests.slice(0, testIndex),
+              {
+                ...store.data.testGroups[testGroupIndex].tests[testIndex],
+                ...updates
+              },
+              ...store.data.testGroups[testGroupIndex].tests.slice(testIndex + 1)
+            ]
+          },
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    deleteTest: ({ testGroupIndex, testIndex }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          {
+            ...store.data.testGroups[testGroupIndex],
+            tests: [
+              ...store.data.testGroups[testGroupIndex].tests.slice(0, testIndex),
+              ...store.data.testGroups[testGroupIndex].tests.slice(testIndex + 1)
+            ]
+          },
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    updateFrame: ({ testGroupIndex, testIndex, frameIndex, updates }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          {
+            ...store.data.testGroups[testGroupIndex],
+            tests: [
+              ...store.data.testGroups[testGroupIndex].tests.slice(0, testIndex),
+              {
+                ...store.data.testGroups[testGroupIndex].tests[testIndex],
+                frames: [
+                  ...store.data.testGroups[testGroupIndex].tests[testIndex].frames.slice(0, frameIndex),
+                  {
+                    ...store.data.testGroups[testGroupIndex].tests[testIndex].frames[frameIndex],
+                    ...updates
+                  },
+                  ...store.data.testGroups[testGroupIndex].tests[testIndex].frames.slice(frameIndex + 1)
+                ]
+              },
+              ...store.data.testGroups[testGroupIndex].tests.slice(testIndex + 1)
+            ]
+          },
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    deleteFrame: ({ testGroupIndex, testIndex, frameIndex }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          {
+            ...store.data.testGroups[testGroupIndex],
+            tests: [
+              ...store.data.testGroups[testGroupIndex].tests.slice(0, testIndex),
+              {
+                ...store.data.testGroups[testGroupIndex].tests[testIndex],
+                frames: [
+                  ...store.data.testGroups[testGroupIndex].tests[testIndex].frames.slice(0, frameIndex),
+                  ...store.data.testGroups[testGroupIndex].tests[testIndex].frames.slice(frameIndex + 1)
+                ]
+              },
+              ...store.data.testGroups[testGroupIndex].tests.slice(testIndex + 1)
+            ]
+          },
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    }))
   })
 
-  React.useEffect(() => {
-    local.set({ source: store.source })
-    setStore(store => ({ ...store, isInitialized: false, status: {}, error: {} }))
-  }, [ store.source ])
-
-  React.useEffect(() => {
-    local.set({ serverBaseURL: store.serverBaseURL })
-    API.client.defaults.baseURL = store.serverBaseURL
-    setStore(store => ({ ...store, isInitialized: false, status: {}, error: {} }))
-  }, [ store.serverBaseURL ])
-
-  if (!store.isConfigured) {
-    const configure = async () => {
-      const { source, serverBaseURL } = await local.get([`source`, `serverBaseURL`])
-
-      setStore(store => ({
-        ...store,
-        isConfigured: true,
-        source: source || store.source,
-        serverBaseURL: serverBaseURL || store.serverBaseURL
-      }))
-    }
-
-    configure()
-  } else if (!store.initializedRef) {
-    const initializedRef = initialize(store)
-
-    for (let key in store.data) {
-      store.getData(key)
-    }
-
-    setStore(store => ({ ...store, initializedRef }))
-  } else {
-    // Update `store` reference used within `tab.onMessage`.
-    store.initializedRef.store = store
-
-    // Store is initialized when the status for each data key is defined and not 'fetching'.
-    if (!store.isInitialized && !Object.keys(store.data).filter(
-      key => (typeof store.status[key] === `undefined` || store.status[key] === `fetching`)
-    ).length) {
-      setStore(store => ({ ...store, isInitialized: true }))
-
-      // Stop the content script just in case it's out of sync with dev tools.
-      if (store.data.recording.routeIndex > -1) {
-        tab.sendMessage({ command: `stopRecording` })
-
-        store.setData(data => ({
-          recording: {
-            routeIndex: -1,
-            testIndex: -1
-          }
-        }))
-      }
-
-      if (store.data.testing.routeIndex > -1) {
-        tab.sendMessage({ command: `stopTesting` })
-
-        store.setData(data => ({
-          testing: {
-            routeIndex: -1,
-            testIndex: -1,
-            recordedItemIndex: -1,
-            allRoutes: false,
-            allTests: false
-          }
-        }))
-      }
-    }
+  if (store.tabRef) {
+    store.tabRef.store = store
   }
 
-  return store.isInitialized && (
+  React.useEffect(() => {
+    if (!store.isConfigured) {
+      const configure = async () => {
+        const { source, serverBaseURL } = await local.get([`source`, `serverBaseURL`])
+
+        setStore(store => ({
+          ...store,
+          tabRef: getTabRef(store),
+          isConfigured: true,
+          source: source || store.source,
+          serverBaseURL: serverBaseURL || store.serverBaseURL
+        }))
+      }
+
+      configure()
+    } else if (!store.isInitialized && store.status === ``) {
+      const fetchData = async () => {
+        setStore(store => ({
+          ...store,
+          status: `fetching`,
+          error: ``
+        }))
+
+        const updates = {
+          isInitialized: true,
+          status: ``,
+          error: ``
+        }
+
+        if (store.source === `server`) {
+          try {
+            updates.data = (await API.client.get(`data`)).data || store.data
+          } catch (error) {
+            updates.error = API.utilities.getErrorMessage(error) || `unknown`
+          }
+        } else {
+          try {
+            updates.data = (await local.get(`data`)) || store.data
+          } catch (error) {
+            updates.error = String(error) || `unknown`
+          }
+        }
+
+        setStore(store => {
+          store = {
+            ...store,
+            ...updates,
+            shouldUpdateContentStore: true
+          }
+
+          return store
+        })
+      }
+
+      fetchData()
+    } else if (store.shouldSaveData && store.status === ``) {
+      const saveData = async () => {
+        setStore(store => ({
+          ...store,
+          status: `saving`,
+          error: ``
+        }))
+
+        const updates = {
+          shouldSaveData: false,
+          status: ``,
+          error: ``
+        }
+
+        if (store.source === `server`) {
+          try {
+            await API.client.put(`data`, store.data)
+          } catch (error) {
+            updates.error = API.utilities.getErrorMessage(error) || `unknown`
+          }
+        } else {
+          try {
+            await local.set({ data: store.data })
+          } catch (error) {
+            updates.error = String(error) || `unknown`
+          }
+        }
+
+        setStore(store => {
+          store = {
+            ...store,
+            ...updates,
+          }
+
+          return store
+        })
+      }
+
+      saveData()
+    }
+
+    if (store.shouldUpdateContentStore) {
+      updateContentStore(store)
+
+      setStore(store => {
+        store = {
+          ...store,
+          shouldUpdateContentStore: false
+        }
+
+        return store
+      })
+    }
+  }, [ store ])
+
+  return store.isInitialized ? (
     <Context.Provider value={store}>
       {children}
     </Context.Provider>
+  ) : (
+    <UI.Modal center={true}>
+      <UI.Spinner />
+    </UI.Modal>
   )
 }
 

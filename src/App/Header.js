@@ -1,5 +1,6 @@
 import React from 'react'
 import styled from 'styled-components'
+import { mix } from 'polished'
 import { Link } from 'react-router-dom'
 import * as UI from '../UI'
 import Logo from './Logo'
@@ -8,7 +9,7 @@ import * as Session from './Session'
 import * as User from './User'
 
 export const Container = styled(UI.Header)`
-  background: #343434;
+  background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(63, 63, 63, 1)`)};
   box-shadow: 0 -3px 6px 6px rgba(0, 0, 0, 0.05);
 
   ${User.Avatar} {

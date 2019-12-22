@@ -2,7 +2,7 @@
   "name": "TestFront.io DevTools",
   "version": "1.0",
   "manifest_version": 2,
-  "minimum_chrome_version": "45.0",
+  "minimum_chrome_version": "49.0",
   "description": "Automatic tests for your frontend as you build it.",
 
   "permissions": [

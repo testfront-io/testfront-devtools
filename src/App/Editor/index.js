@@ -1,13 +1,15 @@
 import actionableEventTypes from './actionableEventTypes'
-import Editor from './Editor'
 import EventSelection from './EventSelection'
-import RecordedItem from './RecordedItem'
+import Frame from './Frame'
 import Test from './Test'
+import TestGroup from './TestGroup'
+import TestGroups from './TestGroups'
 
 export {
   actionableEventTypes,
-  Editor,
   EventSelection,
-  RecordedItem,
-  Test
+  Frame,
+  Test,
+  TestGroup,
+  TestGroups
 }

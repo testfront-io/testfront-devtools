@@ -9,7 +9,7 @@ const backgroundConnection = chrome.runtime.connect({
 
 backgroundConnection.postMessage({
   tabId: chrome.devtools.inspectedWindow.tabId,
-  command: `init`
+  command: `initialize`
 })
 
 /**

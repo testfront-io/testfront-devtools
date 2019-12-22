@@ -1,7 +1,5 @@
-import Routes from './Routes'
-import Tests from './Tests'
+import Editor from './Editor'
 
 export {
-  Routes,
-  Tests
+  Editor
 }

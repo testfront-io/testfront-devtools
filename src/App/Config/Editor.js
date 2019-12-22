@@ -20,13 +20,8 @@ export const Form = styled(UI.Form)`
 
 const Editor = () => (
   <Store.Context.Consumer>
-    {({ error, setData }) => (
-      <Form onSubmit={async (event, formData) => setData(data => ({
-        tests: {
-          ...data.tests,
-          ...formData
-        }
-      }))}>
+    {({ error, updateStore }) => (
+      <Form onSubmit={async (event, data) => updateStore(store => ({ data }))}>
         <UI.Error>
           {error.tests || ``}
         </UI.Error>
