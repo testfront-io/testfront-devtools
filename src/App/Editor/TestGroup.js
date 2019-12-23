@@ -24,7 +24,14 @@ const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
           placeholder='Test Group Description'
           value={testGroup.description}
           autoFocus={!testGroup.description}
-          onChange={(event) => {
+          onKeyUp={event => {
+            if (event.key === `Enter` || event.key === `Escape`) {
+              event.target.blur()
+              event.preventDefault()
+              event.stopPropagation()
+            }
+          }}
+          onBlur={event => {
             const description = event.target.value
 
             if (description !== testGroup.description) {
@@ -52,7 +59,14 @@ const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
         <UI.Input
           placeholder='Path'
           value={testGroup.path}
-          onChange={(event) => {
+          onKeyUp={event => {
+            if (event.key === `Enter` || event.key === `Escape`) {
+              event.target.blur()
+              event.preventDefault()
+              event.stopPropagation()
+            }
+          }}
+          onBlur={event => {
             const path = event.target.value
 
             if (path !== testGroup.path) {
