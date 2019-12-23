@@ -9,7 +9,7 @@ const PASSED = `PASSED`
 const FAILED = `FAILED`
 
 /**
- * For easier replication, this store resembles the `store.data` object created by `React.useState`
+ * For easier replication, this store resembles the `store` object created by `React.useState`
  * in the dev tools' `Provider` component, but it doesn't work like `React.useState`.
  * The data relevant to this content script is initialized below.
  */
