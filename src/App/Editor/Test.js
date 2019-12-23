@@ -60,6 +60,13 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
           placeholder='Test Description'
           value={test.description || ``}
           autoFocus={!test.description}
+          onKeyUp={event => {
+            if (event.key === `Enter` || event.key === `Escape`) {
+              event.target.blur()
+              event.preventDefault()
+              event.stopPropagation()
+            }
+          }}
           onBlur={event => {
             if (event.target.value !== test.description) {
               store.updateTest({
@@ -99,6 +106,13 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
         <UI.Input
           placeholder='Snapshot Container Selector'
           value={test.snapshotSelector || `html`}
+          onKeyUp={event => {
+            if (event.key === `Enter` || event.key === `Escape`) {
+              event.target.blur()
+              event.preventDefault()
+              event.stopPropagation()
+            }
+          }}
           onBlur={event => {
             if (event.target.value !== test.snapshotSelector) {
               // TODO warn that recorded frames will be erased?
