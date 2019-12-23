@@ -84,11 +84,15 @@ const updateFrame = ({ store, message }) => {
 
     const data = {}
     const testGroups = [ ...store.data.testGroups ]
-    const testGroup = { ...testGroups[testGroupIndex] }
-    const tests = [ ...testGroup.tests ]
-    const test = { ...tests[testIndex] }
-    const frames = [ ...test.frames ]
-    const frame = { ...frames[frameIndex], ...updates }
+    const testGroup = testGroups[testGroupIndex] && { ...testGroups[testGroupIndex] }
+    const tests = testGroup && [ ...testGroup.tests ]
+    const test = tests && tests[testIndex] && { ...tests[testIndex] }
+    const frames = test && [ ...test.frames ]
+    const frame = frames && frames[frameIndex] && { ...frames[frameIndex], ...updates }
+
+    if (!frame) {
+      return
+    }
 
     frames[frameIndex] = frame
     test.frames = frames
@@ -240,10 +244,12 @@ const getTabRef = (store) => {
  */
 const Provider = ({ children }) => {
   const [ store, setStore ] = React.useState({
+    timeouts: {},
     tabRef: null,
     isConfigured: false,
     isInitialized: false,
     shouldSaveData: false,
+    shouldUpdateContentStore: false,
 
     source: `local`,
     serverBaseURL: API.client.defaults.baseURL,
@@ -301,6 +307,98 @@ const Provider = ({ children }) => {
       }
     },
 
+    configure: async () => {
+      const { source, serverBaseURL } = await local.get([`source`, `serverBaseURL`])
+
+      setStore(store => ({
+        ...store,
+        tabRef: getTabRef(store),
+        isConfigured: true,
+        source: source || store.source,
+        serverBaseURL: serverBaseURL || store.serverBaseURL
+      }))
+    },
+
+    fetchData: () => setStore(store => {
+      const storeFetchingStatus = {
+        ...store,
+        status: `fetching`,
+        error: ``
+      }
+
+      const fetch = async () => {
+        const updates = {
+          isInitialized: true,
+          status: ``,
+          error: ``
+        }
+
+        if (store.source === `server`) {
+          try {
+            updates.data = (await API.client.get(`data`)).data || store.data
+          } catch (error) {
+            updates.error = API.utilities.getErrorMessage(error) || `unknown`
+          }
+        } else {
+          try {
+            updates.data = (await local.get(`data`)) || store.data
+          } catch (error) {
+            updates.error = String(error) || `unknown`
+          }
+        }
+
+        setStore(store => ({
+          ...store,
+          ...updates,
+          shouldUpdateContentStore: true
+        }))
+      }
+
+      fetch()
+
+      return storeFetchingStatus
+    }),
+
+    saveData: () => setStore(store => {
+      const storeSavingStatus = {
+        ...store,
+        status: `saving`,
+        error: ``
+      }
+
+      const save = async () => {
+        const updates = {
+          shouldSaveData: false,
+          status: ``,
+          error: ``
+        }
+
+        if (store.source === `server`) {
+          try {
+            await API.client.put(`data`, store.data)
+          } catch (error) {
+            updates.error = API.utilities.getErrorMessage(error) || `unknown`
+          }
+        } else {
+          try {
+            console.log({ data: store.data })
+            await local.set({ data: store.data })
+          } catch (error) {
+            updates.error = String(error) || `unknown`
+          }
+        }
+
+        setStore(store => ({
+          ...store,
+          ...updates,
+        }))
+      }
+
+      save()
+
+      return storeSavingStatus
+    }),
+
     updateStore: getUpdates => setStore(store => {
       const updates = getUpdates(store)
 
@@ -340,133 +438,136 @@ const Provider = ({ children }) => {
       }
     }),
 
-    startRecording: ({ testGroupIndex, testIndex, frameIndex = -1 }) => {
-      store.updateStore(store => {
-        const updates = {
-          shouldUpdateContentStore: true,
-          state: RECORDING,
-          testGroupIndex,
-          testIndex,
-          frameIndex
+    updateContentStore: () => setStore(store => {
+      store = {
+        ...store,
+        shouldUpdateContentStore: false
+      }
+
+      updateContentStore(store)
+
+      return store
+    }),
+
+    startRecording: ({ testGroupIndex, testIndex, frameIndex = -1 }) => store.updateStore(store => {
+      const updates = {
+        shouldUpdateContentStore: true,
+        state: RECORDING,
+        testGroupIndex,
+        testIndex,
+        frameIndex
+      }
+
+      return updates
+    }),
+
+    stopRecording: () => store.updateStore(store => {
+      const updates = {
+        shouldUpdateContentStore: true,
+        state: IDLE,
+        testGroupIndex: -1,
+        testIndex: -1,
+        frameIndex: -1
+      }
+
+      return updates
+    }),
+
+    startTesting: ({ testGroupIndex = 0, testIndex = 0, frameIndex = 0, allTestGroups = false, allTests = false }) => store.updateStore(store => {
+      const testGroups = [ ...store.data.testGroups ]
+      let testGroupsChanged = false
+
+      const updates = {
+        shouldUpdateContentStore: true,
+        state: TESTING,
+
+        testGroupIndex,
+        testIndex,
+        frameIndex,
+
+        allTestGroups,
+        allTests,
+
+        data: {
+          state: UNTESTED,
+          testGroups
+        }
+      }
+
+      for (let testGroup = null; testGroupIndex < testGroups.length; testGroupIndex++) {
+        testGroup = { ...testGroups[testGroupIndex] }
+
+        if (testGroup.skip && testGroupIndex !== updates.testGroupIndex) {
+          continue
         }
 
-        return updates
-      })
-    },
+        const tests = [ ...testGroup.tests ]
+        let testsChanged = false
 
-    stopRecording: () => {
-      store.updateStore(store => {
-        const updates = {
-          shouldUpdateContentStore: true,
-          state: IDLE,
-          testGroupIndex: -1,
-          testIndex: -1,
-          frameIndex: -1
-        }
+        for (let test = null; testIndex < tests.length; testIndex++) {
+          test = { ...tests[testIndex] }
 
-        return updates
-      })
-    },
-
-    startTesting: ({ testGroupIndex = 0, testIndex = 0, frameIndex = 0, allTestGroups = false, allTests = false }) => {
-      store.updateStore(store => {
-        const testGroups = [ ...store.data.testGroups ]
-        let testGroupsChanged = false
-
-        const updates = {
-          shouldUpdateContentStore: true,
-          state: TESTING,
-
-          testGroupIndex,
-          testIndex,
-          frameIndex,
-
-          allTestGroups,
-          allTests,
-
-          data: {
-            state: UNTESTED,
-            testGroups
-          }
-        }
-
-        for (let testGroup = null; testGroupIndex < testGroups.length; testGroupIndex++) {
-          testGroup = { ...testGroups[testGroupIndex] }
-
-          if (testGroup.skip && testGroupIndex !== updates.testGroupIndex) {
+          if (test.skip && (testGroupIndex !== updates.testGroupIndex || (allTests && testIndex !== updates.testIndex))) {
             continue
           }
 
-          const tests = [ ...testGroup.tests ]
-          let testsChanged = false
+          const frames = [ ...test.frames ]
+          let framesChanged = false
 
-          for (let test = null; testIndex < tests.length; testIndex++) {
-            test = { ...tests[testIndex] }
-
-            if (test.skip && (testGroupIndex !== updates.testGroupIndex || (allTests && testIndex !== updates.testIndex))) {
-              continue
-            }
-
-            const frames = [ ...test.frames ]
-            let framesChanged = false
-
-            for (let frame = null; frameIndex < frames.length; frameIndex++) {
-              frame = { ...frames[frameIndex] }
-              frame.state = UNTESTED
-              frame.error = undefined
-              frames[frameIndex] = frame
-              framesChanged = true
-            }
-
-            if (framesChanged) {
-              test.frames = frames
-              test.state = UNTESTED
-              tests[testIndex] = test
-              testsChanged = true
-            }
-
-            if (allTests) {
-              frameIndex = 0
-            } else {
-              break
-            }
+          for (let frame = null; frameIndex < frames.length; frameIndex++) {
+            frame = { ...frames[frameIndex] }
+            frame.state = UNTESTED
+            frame.error = undefined
+            frames[frameIndex] = frame
+            framesChanged = true
           }
 
-          if (testsChanged) {
-            testGroup.tests = tests
-            testGroup.state = UNTESTED
-            testGroups[testGroupIndex] = testGroup
-            testGroupsChanged = true
+          if (framesChanged) {
+            test.frames = frames
+            test.state = UNTESTED
+            tests[testIndex] = test
+            testsChanged = true
           }
 
-          if (allTestGroups) {
-            testIndex = 0
+          if (allTests) {
+            frameIndex = 0
           } else {
             break
           }
         }
 
-        if (!testGroupsChanged) {
-          return
+        if (testsChanged) {
+          testGroup.tests = tests
+          testGroup.state = UNTESTED
+          testGroups[testGroupIndex] = testGroup
+          testGroupsChanged = true
         }
 
-        return updates
-      })
-    },
-
-    stopTesting: () => {
-      store.updateStore(store => {
-        const updates = {
-          shouldUpdateContentStore: true,
-          state: IDLE,
-          testGroupIndex: -1,
-          testIndex: -1,
-          frameIndex: -1
+        if (allTestGroups) {
+          testIndex = 0
+        } else {
+          break
         }
+      }
 
-        return updates
-      })
-    },
+      if (!testGroupsChanged) {
+        return
+      }
+
+      return updates
+    }),
+
+    stopTesting: () => store.updateStore(store => {
+      const updates = {
+        shouldUpdateContentStore: true,
+        state: IDLE,
+        testGroupIndex: -1,
+        testIndex: -1,
+        frameIndex: -1
+      }
+
+      return updates
+    }),
 
     addTestGroup: ({ testGroup = {} } = {}) => store.updateStore(store => ({
       data: {
@@ -624,111 +725,18 @@ const Provider = ({ children }) => {
 
   React.useEffect(() => {
     if (!store.isConfigured) {
-      const configure = async () => {
-        const { source, serverBaseURL } = await local.get([`source`, `serverBaseURL`])
-
-        setStore(store => ({
-          ...store,
-          tabRef: getTabRef(store),
-          isConfigured: true,
-          source: source || store.source,
-          serverBaseURL: serverBaseURL || store.serverBaseURL
-        }))
-      }
-
-      configure()
+      store.configure()
     } else if (!store.isInitialized && store.status === ``) {
-      const fetchData = async () => {
-        setStore(store => ({
-          ...store,
-          status: `fetching`,
-          error: ``
-        }))
-
-        const updates = {
-          isInitialized: true,
-          status: ``,
-          error: ``
-        }
-
-        if (store.source === `server`) {
-          try {
-            updates.data = (await API.client.get(`data`)).data || store.data
-          } catch (error) {
-            updates.error = API.utilities.getErrorMessage(error) || `unknown`
-          }
-        } else {
-          try {
-            updates.data = (await local.get(`data`)) || store.data
-          } catch (error) {
-            updates.error = String(error) || `unknown`
-          }
-        }
-
-        setStore(store => {
-          store = {
-            ...store,
-            ...updates,
-            shouldUpdateContentStore: true
-          }
-
-          return store
-        })
-      }
-
-      fetchData()
+      clearTimeout(store.timeouts.fetchData)
+      store.timeouts.fetchData = setTimeout(() =>  store.fetchData())
     } else if (store.shouldSaveData && store.status === ``) {
-      const saveData = async () => {
-        setStore(store => ({
-          ...store,
-          status: `saving`,
-          error: ``
-        }))
-
-        const updates = {
-          shouldSaveData: false,
-          status: ``,
-          error: ``
-        }
-
-        if (store.source === `server`) {
-          try {
-            await API.client.put(`data`, store.data)
-          } catch (error) {
-            updates.error = API.utilities.getErrorMessage(error) || `unknown`
-          }
-        } else {
-          try {
-            await local.set({ data: store.data })
-          } catch (error) {
-            updates.error = String(error) || `unknown`
-          }
-        }
-
-        setStore(store => {
-          store = {
-            ...store,
-            ...updates,
-          }
-
-          return store
-        })
-      }
-
-      saveData()
+      clearTimeout(store.timeouts.saveData)
+      store.timeouts.saveData = setTimeout(() =>  store.saveData())
     }
 
     if (store.shouldUpdateContentStore) {
-      updateContentStore(store)
-
-      setStore(store => {
-        store = {
-          ...store,
-          shouldUpdateContentStore: false
-        }
-
-        return store
-      })
+      clearTimeout(store.timeouts.updateContentStore)
+      store.timeouts.updateContentStore = setTimeout(() =>  store.updateContentStore())
     }
   }, [ store ])
 

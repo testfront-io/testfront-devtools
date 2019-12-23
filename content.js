@@ -122,11 +122,15 @@ const updateFrame = updates => {
 
   const data = {}
   const testGroups = [ ...store.data.testGroups ]
-  const testGroup = { ...testGroups[testGroupIndex] }
-  const tests = [ ...testGroup.tests ]
-  const test = { ...tests[testIndex] }
-  const frames = [ ...test.frames ]
-  const frame = { ...frames[frameIndex], ...updates }
+  const testGroup = testGroups[testGroupIndex] && { ...testGroups[testGroupIndex] }
+  const tests = testGroup && [ ...testGroup.tests ]
+  const test = tests && tests[testIndex] && { ...tests[testIndex] }
+  const frames = test && [ ...test.frames ]
+  const frame = frames && frames[frameIndex] && { ...frames[frameIndex], ...updates }
+
+  if (!frame) {
+    return
+  }
 
   const incrementFrameIndex = () => {
     frameIndex++
@@ -414,12 +418,10 @@ const simulateEvent = frame => {
     : document.querySelector(targetSelector)
 
   if (!element) {
-    console.warn(`TestFront could not find element:`, { eventType, targetSelector })
     return false
   }
 
   if (typeof element[eventType] === `function`) {  // TODO should we actually do it this way?
-    console.log(`simulatedEvent by element.${eventType}() for`, { frame })
     element[eventType]()
     return true
   }
@@ -561,7 +563,6 @@ window.requestAnimationFrame(main)
 const handleDevToolsMessage = (message) => {
   switch (message.command) {
     case `updateStore`:
-      console.log(message.updates)
       return updateStore(message.updates)
 
     case `consoleLog`:
