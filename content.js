@@ -95,9 +95,12 @@ const addFrame = frame => {
 
   frames.push(frame)
   test.frames = frames
+  test.state = UNTESTED
   tests[testIndex] = test
+  testGroup.state = UNTESTED
   testGroup.tests = tests
   testGroups[testGroupIndex] = testGroup
+  data.state = UNTESTED
   data.testGroups = testGroups
 
   updateStore({ data })
