@@ -390,7 +390,7 @@ const getTargetSelector = (element) => {
 
     element = element.parentNode
 
-    if (element === snapshotContainer) {
+    if (snapshotContainer && element === snapshotContainer) {
       targetSelector.unshift(snapshotSelector)
       break
     }
@@ -487,7 +487,13 @@ const record = () => {
   const { testGroupIndex, testIndex } = store
   const { testGroups } = store.data
   const { snapshotSelector } = testGroups[testGroupIndex].tests[testIndex]
-  const html = document.querySelector(snapshotSelector).innerHTML
+  const snapshotContainer = document.querySelector(snapshotSelector)
+
+  if (!snapshotContainer) {
+    return
+  }
+
+  const html = snapshotContainer.innerHTML
 
   if (html !== currentHtml) {
     currentHtml = html
@@ -503,17 +509,19 @@ const test = () => {
   const { testGroups, timeLimits } = store.data
   const { frames, snapshotSelector } = testGroups[testGroupIndex].tests[testIndex]
   const frame = frames[frameIndex]
+  let snapshotContainer = null
 
   if (typeof frame.html !== `undefined`) {
-    currentHtml = document.querySelector(snapshotSelector).innerHTML
+    snapshotContainer = document.querySelector(snapshotSelector)
+    currentHtml = snapshotContainer && snapshotContainer.innerHTML
 
-    if (currentHtml === frame.html) {
+    if (snapshotContainer && currentHtml === frame.html) {
       clearTimeouts([`compareHtml`])
       updateFrame({ state: PASSED })
     } else if (timeouts.compareHtml < 0) {
       timeouts.compareHtml = setTimeout(() => {
         timeouts.compareHtml = -1
-        updateFrame({ state: FAILED, error: { html: currentHtml } })
+        updateFrame({ state: FAILED, error: snapshotContainer ? { html: currentHtml } : { message: `Snapshot container not found` } })
       }, timeLimits.compareHtml)
     }
   } else {
@@ -550,6 +558,7 @@ window.requestAnimationFrame(main)
 const handleDevToolsMessage = (message) => {
   switch (message.command) {
     case `updateStore`:
+      console.log(message.updates)
       return updateStore(message.updates)
 
     case `consoleLog`:
