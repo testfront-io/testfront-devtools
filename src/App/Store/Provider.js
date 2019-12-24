@@ -10,9 +10,7 @@ import {
   RECORDING,
   TESTING,
 
-  UNTESTED,
-  PASSED,
-  FAILED
+  UNTESTED
 } from '../../constants'
 
 /**
@@ -67,28 +65,21 @@ const addFrame = ({ store, message }) => {
 }
 
 /**
- * Updates the current frame.
- * If `store.state` is TESTING:
- *   If `updates.state` is PASSED, increments the indexes to the next testable frame.
- *   If `updates.state` is FAILED, stops testing.
- *   Updates the frame's parent `test` and `testGroup` as necessary.
+ * Updates the provided frame, test, testGroup, data, and store.
  * @param {object} store
  * @param {object} message
  */
-const updateFrame = ({ store, message }) => {
-  const { updates } = message
+const handleFrameTestResult = ({ store, message }) => {
+  const { testGroupIndex, testIndex, frameIndex, updates } = message
 
   store.updateStore(store => {
-    let { state, testGroupIndex, testIndex, frameIndex } = store
-    const { allTestGroups, allTests } = store
-
     const data = {}
     const testGroups = [ ...store.data.testGroups ]
-    const testGroup = testGroups[testGroupIndex] && { ...testGroups[testGroupIndex] }
+    const testGroup = testGroups[testGroupIndex] && { ...testGroups[testGroupIndex], ...(updates.testGroup || {}) }
     const tests = testGroup && [ ...testGroup.tests ]
-    const test = tests && tests[testIndex] && { ...tests[testIndex] }
+    const test = tests && tests[testIndex] && { ...tests[testIndex], ...(updates.test || {}) }
     const frames = test && [ ...test.frames ]
-    const frame = frames && frames[frameIndex] && { ...frames[frameIndex], ...updates }
+    const frame = frames && frames[frameIndex] && { ...frames[frameIndex], ...updates.frame }
 
     if (!frame) {
       return
@@ -101,81 +92,8 @@ const updateFrame = ({ store, message }) => {
     testGroups[testGroupIndex] = testGroup
     data.testGroups = testGroups
 
-    const incrementFrameIndex = () => {
-      frameIndex++
-
-      if (!frames[frameIndex]) {
-        test.state = PASSED
-
-        if (tests.every(test => test.state === PASSED)) {
-          testGroup.state = PASSED
-        }
-
-        if (testGroups.every(testGroup => testGroup.state === PASSED)) {
-          data.state = PASSED
-        }
-
-        if (allTests) {
-          frameIndex = 0
-          incrementTestIndex()
-        } else {
-          stopTesting()
-        }
-      }
-    }
-
-    const incrementTestIndex = () => {
-      const testGroup = testGroups[testGroupIndex]
-      const tests = testGroup.tests
-      const test = tests[++testIndex]
-
-      if (!test) {
-        if (allTestGroups) {
-          incrementTestGroupIndex()
-        } else {
-          stopTesting()
-        }
-      } else if (test.skip || !test.frames.length) {
-        incrementTestIndex()
-      }
-    }
-
-    const incrementTestGroupIndex = () => {
-      const testGroup = testGroups[++testGroupIndex]
-
-      if (!testGroup) {
-        stopTesting()
-      } else if (testGroup.skip) {
-        incrementTestGroupIndex()
-      } else {
-        testIndex = -1
-        incrementTestIndex()
-      }
-    }
-
-    const stopTesting = () => {
-      state = IDLE
-      testGroupIndex = -1
-      testIndex = -1
-      frameIndex = -1
-    }
-
-    if (state === TESTING) {
-      if (updates.state === PASSED) {
-        incrementFrameIndex()
-      } else if (updates.state === FAILED) {
-        test.state = FAILED
-        testGroup.state = FAILED
-        data.state = FAILED
-        stopTesting()
-      }
-    }
-
     return {
-      state,
-      testGroupIndex,
-      testIndex,
-      frameIndex,
+      ...updates.store,
       data
     }
   })
@@ -223,8 +141,8 @@ const getTabRef = (store) => {
         addFrame({ store: tabRef.store, message })
         break
 
-      case `updateFrame`:
-        updateFrame({ store: tabRef.store, message })
+      case `handleFrameTestResult`:
+        handleFrameTestResult({ store: tabRef.store, message })
         break
 
       case `consoleLog`:
@@ -381,7 +299,6 @@ const Provider = ({ children }) => {
           }
         } else {
           try {
-            console.log({ data: store.data })
             await local.set({ data: store.data })
           } catch (error) {
             updates.error = String(error) || `unknown`
@@ -497,7 +414,7 @@ const Provider = ({ children }) => {
       for (let testGroup = null; testGroupIndex < testGroups.length; testGroupIndex++) {
         testGroup = { ...testGroups[testGroupIndex] }
 
-        if (testGroup.skip && testGroupIndex !== updates.testGroupIndex) {
+        if (allTestGroups && testGroup.skip) {
           continue
         }
 
@@ -507,7 +424,7 @@ const Provider = ({ children }) => {
         for (let test = null; testIndex < tests.length; testIndex++) {
           test = { ...tests[testIndex] }
 
-          if (test.skip && (testGroupIndex !== updates.testGroupIndex || (allTests && testIndex !== updates.testIndex))) {
+          if (allTests && test.skip) {
             continue
           }
 

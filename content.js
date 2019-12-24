@@ -109,14 +109,13 @@ const addFrame = frame => {
 }
 
 /**
- * Updates the current frame and sends the same `updates` to dev tools.
- * If `store.state` is TESTING:
- *   If `updates.state` is PASSED, increments the indexes to the next testable frame.
- *   If `updates.state` is FAILED, stops testing.
- *   Updates the frame's parent `test` and `testGroup` as necessary.
+ * Updates the current frame and sends the necessary updates to dev tools.
+ * If `updates.state` is PASSED, increments the indexes to the next testable frame.
+ * If `updates.state` is FAILED, stops testing.
+ * Updates the `state` of the frame's parent `test` and `testGroup` as necessary.
  * @param {object} updates
  */
-const updateFrame = updates => {
+const handleFrameTestResult = updates => {
   let { state, testGroupIndex, testIndex, frameIndex } = store
   const { allTestGroups, allTests } = store
 
@@ -132,26 +131,13 @@ const updateFrame = updates => {
     return
   }
 
-  const incrementFrameIndex = () => {
-    frameIndex++
-
-    if (!frames[frameIndex]) {
-      test.state = PASSED
-
-      if (tests.every(test => test.state === PASSED)) {
-        testGroup.state = PASSED
-      }
-
-      if (testGroups.every(testGroup => testGroup.state === PASSED)) {
-        data.state = PASSED
-      }
-
-      if (allTests) {
-        frameIndex = 0
-        incrementTestIndex()
-      } else {
-        stopTesting()
-      }
+  const message = {
+    command: `handleFrameTestResult`,
+    testGroupIndex,
+    testIndex,
+    frameIndex,
+    updates: {
+      frame: updates
     }
   }
 
@@ -198,15 +184,38 @@ const updateFrame = updates => {
   testGroups[testGroupIndex] = testGroup
   data.testGroups = testGroups
 
-  if (state === TESTING) {
-    if (updates.state === PASSED) {
-      incrementFrameIndex()
-    } else if (updates.state === FAILED) {
-      test.state = FAILED
-      testGroup.state = FAILED
-      data.state = FAILED
-      stopTesting()
+  if (updates.state === PASSED) {
+    frameIndex++
+
+    if (!frames[frameIndex]) {
+      test.state = PASSED
+      message.updates.test = { state: PASSED }
+
+      if (tests.every(test => test.state === PASSED)) {
+        testGroup.state = PASSED
+        message.updates.testGroup = { state: PASSED }
+      }
+
+      if (testGroups.every(testGroup => testGroup.state === PASSED)) {
+        data.state = PASSED
+        message.updates.data = { state: PASSED }
+      }
+
+      if (allTests) {
+        frameIndex = 0
+        incrementTestIndex()
+      } else {
+        stopTesting()
+      }
     }
+  } else if (updates.state === FAILED) {
+    test.state = FAILED
+    message.updates.test = { state: FAILED }
+    testGroup.state = FAILED
+    message.updates.testGroup = { state: FAILED }
+    data.state = FAILED
+    message.updates.data = { state: FAILED }
+    stopTesting()
   }
 
   updateStore({
@@ -217,7 +226,14 @@ const updateFrame = updates => {
     data
   })
 
-  chrome.runtime.sendMessage({ command: `updateFrame`, updates })
+  message.updates.store = {
+    state,
+    testGroupIndex,
+    testIndex,
+    frameIndex
+  }
+
+  chrome.runtime.sendMessage(message)
 }
 
 /**
@@ -507,7 +523,7 @@ const record = () => {
 }
 
 /**
- * Tests the recorded `frames`.
+ * Tests the recorded `frames` and updates the store based on the result.
  */
 const test = () => {
   const { testGroupIndex, testIndex, frameIndex } = store
@@ -522,21 +538,23 @@ const test = () => {
 
     if (snapshotContainer && currentHtml === frame.html) {
       clearTimeouts([`compareHtml`])
-      updateFrame({ state: PASSED })
+      handleFrameTestResult({ state: PASSED })
     } else if (timeouts.compareHtml < 0) {
       timeouts.compareHtml = setTimeout(() => {
         timeouts.compareHtml = -1
-        updateFrame({ state: FAILED, error: snapshotContainer ? { html: currentHtml } : { message: `Snapshot container not found` } })
+        snapshotContainer = document.querySelector(snapshotSelector)
+        currentHtml = snapshotContainer && snapshotContainer.innerHTML
+        handleFrameTestResult({ state: FAILED, error: snapshotContainer ? { html: currentHtml } : { message: `Snapshot container not found` } })
       }, timeLimits.compareHtml)
     }
   } else {
     if (simulateEvent(frame)) {
       clearTimeouts([`simulateEvent`])
-      updateFrame({ state: PASSED })
+      handleFrameTestResult({ state: PASSED })
     } else if (timeouts.simulateEvent < 0) {
       timeouts.simulateEvent = setTimeout(() => {
         timeouts.simulateEvent = -1
-        updateFrame({ state: FAILED, error: { message: `Target not found` } })
+        handleFrameTestResult({ state: FAILED, error: { message: `Target not found` } })
       }, timeLimits.simulateEvent)
     }
   }
