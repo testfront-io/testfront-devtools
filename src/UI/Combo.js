@@ -13,6 +13,7 @@ const Combo = styled(({
   placeholder,
   value = ``,
   inputValue = ``,
+  onInput,
   onChange,
   children,
   ...props
@@ -63,7 +64,16 @@ const Combo = styled(({
         { ...props }
         type='text'
         value={state.inputValue}
-        onChange={event => setState({ value, inputValue: event.target.value })}
+        onInput={event => {
+          setState({ value, inputValue: event.target.value })
+
+          if (onInput) {
+            onInput(event, setState)
+          }
+        }}
+        onChange={event => {
+          setState({ value, inputValue: event.target.value })
+        }}
       />
 
       {name && (

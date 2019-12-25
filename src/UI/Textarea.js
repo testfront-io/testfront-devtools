@@ -9,14 +9,25 @@ const Textarea = styled(({
   className,
   placeholder,
   value = ``,
+  onInput,
   onChange,
   onKeyUp,
   onKeyDown,
   onKeyPress,
   children,
+  useEffect,
   ...props
 }) => {
   const [ state, setState ] = React.useState({ value })
+
+  const handleInput = event => {
+    setState({ value: event.target.value })
+
+    if (onInput) {
+      onInput(event, setState)
+    }
+  }
+
   const handleChange = event => {
     setState({ value: event.target.value })
 
@@ -25,13 +36,14 @@ const Textarea = styled(({
     }
   }
 
-  React.useEffect(() => setState({ value }), [ value ])
+  React.useEffect(() => useEffect && setState({ value }), [ useEffect, value ])
 
   return (
     <span className={className} data-placeholder={placeholder}>
       <textarea
         { ...props }
         value={state.value}
+        onInput={handleInput}
         onChange={handleChange}
         onKeyUp={onKeyUp && (event => onKeyUp(event, setState))}
         onKeyDown={onKeyDown && (event => onKeyDown(event, setState))}

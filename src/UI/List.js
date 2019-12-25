@@ -8,10 +8,10 @@ import octicons from 'octicons'
  * You can combine with other form elements (e.g., `Input`, `Combo`, etc.) to modify the list.
  * Uses the `data-json` attribute to provide an array as the value within a `Form`.
  */
-const List = styled(({ className, name, placeholder, value, children }) => {
+const List = styled(({ className, name, placeholder, value, children, useEffect }) => {
   const [ state, setState ] = React.useState({ value })
 
-  React.useEffect(() => setState({ value }), [ value ])
+  React.useEffect(() => useEffect && setState({ value }), [ useEffect, value ])
 
   return (
     <div className={className} data-placeholder={placeholder}>

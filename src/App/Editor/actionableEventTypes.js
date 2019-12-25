@@ -13,6 +13,11 @@ const actionableEventTypes = [
     `change`
   ]],
 
+  [`Forms`, [
+    `submit`,
+    `reset`
+  ]],
+
   [`Keys`, [
     `keypress`,
     `keydown`,

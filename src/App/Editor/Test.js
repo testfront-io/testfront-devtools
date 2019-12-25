@@ -143,7 +143,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
           {actionableEventTypes.map((eventTypesGroup, eventTypesGroupIndex) => (
             <EventSelection
               key={`EventSelection_${testGroupIndex}_${testIndex}_${eventTypesGroupIndex}`}
-              style={(showingMore || (!test.eventTypes.length && eventTypesGroupIndex < 2) || hasOneSelected({ eventTypesGroup, test })) ? undefined : { display: `none` }}
+              style={(showingMore || (!test.eventTypes.length && eventTypesGroupIndex < 3) || hasOneSelected({ eventTypesGroup, test })) ? undefined : { display: `none` }}
               store={store}
               testGroupIndex={testGroupIndex}
               testIndex={testIndex}

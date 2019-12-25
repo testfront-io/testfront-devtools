@@ -5,7 +5,7 @@ import { mix } from 'polished'
 /**
  * Attempt to normalize datetime inputs across different browsers.
  */
-export const DateTimeInput = ({ name, value, offsetTime = 0, onChange, style, ...props }) => {
+export const DateTimeInput = ({ name, value, offsetTime = 0, onInput, onChange, style, ...props }) => {
   const [ state, setState ] = React.useState({ value })
 
   const [ date, time ] = new Date(new Date(state.value).getTime() + offsetTime)
@@ -35,6 +35,18 @@ export const DateTimeInput = ({ name, value, offsetTime = 0, onChange, style, ..
         type='date'
         style={{ ...style, width: `55%` }}
         value={date}
+        onInput={event => {
+          const date = event.target.value
+          const value = date && getValue(date, time)
+
+          if (value) {
+            setState({ value })
+
+            if (onInput) {
+              onInput({ ...event, target: { name, value } })
+            }
+          }
+        }}
         onChange={event => {
           const date = event.target.value
           const value = date && getValue(date, time)
@@ -54,6 +66,21 @@ export const DateTimeInput = ({ name, value, offsetTime = 0, onChange, style, ..
         type='time'
         style={{ ...style, width: `45%` }}
         value={time}
+        onInput={event => {
+          let time = event.target.value
+          while (time.split(`:`).length < 3) {
+            time = `${time}:00`
+          }
+          const value = time && getValue(date, time)
+
+          if (value) {
+            setState({ value })
+
+            if (onInput) {
+              onInput({ ...event, target: { name, value } })
+            }
+          }
+        }}
         onChange={event => {
           let time = event.target.value
           while (time.split(`:`).length < 3) {
@@ -91,14 +118,25 @@ const Input = styled(({
   type = `text`,
   placeholder,
   value = ``,
+  onInput,
   onChange,
   onKeyUp,
   onKeyDown,
   onKeyPress,
   children,
+  useEffect,
   ...props
 }) => {
   const [ state, setState ] = React.useState({ value })
+
+  const handleInput = event => {
+    setState({ value: event.target.value })
+
+    if (onInput) {
+      onInput(event, setState)
+    }
+  }
+
   const handleChange = event => {
     setState({ value: event.target.value })
 
@@ -107,7 +145,7 @@ const Input = styled(({
     }
   }
 
-  React.useEffect(() => setState({ value }), [ value ])
+  React.useEffect(() => useEffect && setState({ value }), [ useEffect, value ])
 
   return (
     <span className={className} data-placeholder={placeholder}>
@@ -115,6 +153,7 @@ const Input = styled(({
         <DateTimeInput
           { ...props }
           value={state.value}
+          onInput={handleInput}
           onChange={handleChange}
           onKeyUp={event => {
             if (onKeyUp) {
@@ -127,6 +166,7 @@ const Input = styled(({
           type={type || `text`}
           { ...props }
           value={state.value}
+          onInput={handleInput}
           onChange={handleChange}
           onKeyUp={onKeyUp && (event => onKeyUp(event, setState))}
           onKeyDown={onKeyDown && (event => onKeyDown(event, setState))}

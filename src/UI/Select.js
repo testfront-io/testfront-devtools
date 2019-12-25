@@ -12,11 +12,12 @@ const Select = styled(({
   placeholder,
   value = ``,
   onChange,
+  useEffect,
   ...props
 }) => {
   const [ state, setState ] = React.useState({ value })
 
-  React.useEffect(() => setState({ value }), [ value ])
+  React.useEffect(() => useEffect && setState({ value }), [ useEffect, value ])
 
   return (
     <span className={className} data-placeholder={(placeholder && typeof placeholder === `object`) ? undefined : placeholder}>

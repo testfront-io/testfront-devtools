@@ -60,11 +60,15 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
 
       <span>Snapshot</span>
 
-      {frame.error && frame.error.html && (
+      {frame.error && typeof frame.error.html !== `undefined` && (
         <div>
-          <pre dangerouslySetInnerHTML={{
-            __html: utilities.getPrettyHtml(utilities.getDiffs(frame.html, frame.error.html))
-          }} />
+          {(typeof frame.html === `string` && typeof frame.error.html === `string`) ? (
+            <pre dangerouslySetInnerHTML={{
+              __html: utilities.getPrettyHtml(utilities.getDiffs(frame.html, frame.error.html))
+            }} />
+          ) : (
+          <span>The recorded container {frame.html === null ? `was not found` : `was found`}, while the tested container {frame.html === null ? `was` : `was not`}.</span>
+          )}
         </div>
       )}
 
@@ -227,7 +231,7 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
   display: block;
   min-height: 30px;
   padding: 5px 80px 5px 50px;
-  background: ${({ theme, frame }) => frame.html ? mix(0.5, theme.colors.background, `rgba(111, 111, 111, 1)`) : `inherit`};
+  background: ${({ theme, frame }) => typeof frame.html !== `undefined` ? mix(0.5, theme.colors.background, `rgba(111, 111, 111, 1)`) : `inherit`};
   font-size: 15px;
   line-height: 20px;
 

@@ -73,7 +73,11 @@ const handleFrameTestResult = ({ store, message }) => {
   const { testGroupIndex, testIndex, frameIndex, updates } = message
 
   store.updateStore(store => {
-    const data = {}
+    if (store.state !== TESTING) {
+      return
+    }
+
+    const data = message.updates.data || {}
     const testGroups = [ ...store.data.testGroups ]
     const testGroup = testGroups[testGroupIndex] && { ...testGroups[testGroupIndex], ...(updates.testGroup || {}) }
     const tests = testGroup && [ ...testGroup.tests ]
@@ -117,13 +121,12 @@ const getStoreForContentScript = store => ({
 })
 
 /**
- * Updates the content script's store.
+ * Updates the content script's store when ready.
  * @param {object} store
  */
-const updateContentStore = store => {
-  store = getStoreForContentScript(store)
-  tab.sendMessage({ command: `updateStore`, updates: store })
-}
+const initializeContentStore = store => store.updateStore(store => ({
+  shouldUpdateContentStore: true
+}))
 
 /**
  * The tab needs a reference to the current `store` within its `onMessage` handlers.
@@ -134,7 +137,7 @@ const getTabRef = (store) => {
   tab.onMessage((message) => {
     switch (message.command) {
       case `initializeContentStore`:
-        updateContentStore(tabRef.store)
+        initializeContentStore(tabRef.store)
         break
 
       case `addFrame`:
@@ -161,8 +164,8 @@ const getTabRef = (store) => {
  * Use `store.updateStore(store => ({ source: 'server' }))` to use with `testfront-extension-server`.
  */
 const Provider = ({ children }) => {
+  const [ timeouts ] = React.useState({})
   const [ store, setStore ] = React.useState({
-    timeouts: {},
     tabRef: null,
     isConfigured: false,
     isInitialized: false,
@@ -198,7 +201,7 @@ const Provider = ({ children }) => {
           description: ``,
           snapshotSelector: ``,
           eventTypes: [],
-          frames: [frame.html ? {
+          frames: [typeof frame.html !== `undefined` ? {
             state: UNTESTED,
             html,
             error?: {
@@ -220,8 +223,15 @@ const Provider = ({ children }) => {
       }*/],
 
       timeLimits: {
-        simulateEvent: 2000,
-        compareHtml: 2000
+        snapshotHtml: 3000,
+        simulateEvent: 3000
+      },
+
+      delays: {
+        events: {
+          input: 0,
+          change: 0
+        }
       }
     },
 
@@ -361,7 +371,10 @@ const Provider = ({ children }) => {
         shouldUpdateContentStore: false
       }
 
-      updateContentStore(store)
+      tab.sendMessage({
+        command: `updateStore`,
+        updates: getStoreForContentScript(store)
+      })
 
       return store
     }),
@@ -537,7 +550,7 @@ const Provider = ({ children }) => {
                 state: UNTESTED,
                 description: ``,
                 snapshotSelector: (store.data.testGroups[testGroupIndex].tests[store.data.testGroups[testGroupIndex].tests.length - 1] && store.data.testGroups[testGroupIndex].tests[store.data.testGroups[testGroupIndex].tests.length - 1].snapshotSelector) || `html`,
-                eventTypes: [ `click`, `input`, `change` ],
+                eventTypes: [ `click`, `input`, `change`, `submit` ],
                 frames: [],
                 skip: false,
                 ...test
@@ -643,19 +656,22 @@ const Provider = ({ children }) => {
   React.useEffect(() => {
     if (!store.isConfigured) {
       store.configure()
-    } else if (!store.isInitialized && store.status === ``) {
-      clearTimeout(store.timeouts.fetchData)
-      store.timeouts.fetchData = setTimeout(() =>  store.fetchData())
-    } else if (store.shouldSaveData && store.status === ``) {
-      clearTimeout(store.timeouts.saveData)
-      store.timeouts.saveData = setTimeout(() =>  store.saveData())
-    }
+    } else if (store.status === ``) {
+      if (!store.isInitialized) {
+        store.fetchData()
+        return
+      }
 
-    if (store.shouldUpdateContentStore) {
-      clearTimeout(store.timeouts.updateContentStore)
-      store.timeouts.updateContentStore = setTimeout(() =>  store.updateContentStore())
+      if (store.shouldUpdateContentStore) {
+        store.updateContentStore()
+      }
+
+      if (store.shouldSaveData) {
+        clearTimeout(timeouts.saveData)
+        timeouts.saveData = setTimeout(() => store.saveData())
+      }
     }
-  }, [ store ])
+  }, [ store, timeouts ])
 
   return store.isInitialized ? (
     <Context.Provider value={store}>
