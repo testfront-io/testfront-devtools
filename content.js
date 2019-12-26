@@ -529,9 +529,27 @@ const specialEventSimulator = {
 const main = () => {
   compareCurrentSnapshotHtml()
   simulateCurrentFrameEvent()
+  sendFrameTestResults()
   window.requestAnimationFrame(main)
 }
 window.requestAnimationFrame(main)
+
+/**
+ * Buffer the sending of frame test results.
+ */
+let bufferedFrameTestResultsCount = 0
+const bufferedFrameTestResultsLimit = 20 // Send every 20 animation frames.
+const sendFrameTestResults = () => {
+  if (store.bufferedFrameTestResults) {
+    if (bufferedFrameTestResultsCount < bufferedFrameTestResultsLimit) {
+      bufferedFrameTestResultsCount++
+    } else {
+      chrome.runtime.sendMessage({ command: `handleBufferedFrameTestResults`, bufferedFrameTestResults: store.bufferedFrameTestResults })
+      store.bufferedFrameTestResults = null
+      bufferedFrameTestResultsCount = 0
+    }
+  }
+}
 
 /**
  * When testing, updates the current frame and sends the necessary updates to dev tools.
@@ -558,16 +576,6 @@ const handleFrameTestResult = updates => {
 
   if (!frame) {
     return
-  }
-
-  const message = {
-    command: `handleFrameTestResult`,
-    testGroupIndex,
-    testIndex,
-    frameIndex,
-    updates: {
-      frame: updates
-    }
   }
 
   const incrementTestIndex = () => {
@@ -613,21 +621,46 @@ const handleFrameTestResult = updates => {
   testGroups[testGroupIndex] = testGroup
   data.testGroups = testGroups
 
+  if (!store.bufferedFrameTestResults) {
+    store.bufferedFrameTestResults = {
+      data: {
+        testGroups: {}
+      }
+    }
+  }
+
+  if (!store.bufferedFrameTestResults.data.testGroups[testGroupIndex]) {
+    store.bufferedFrameTestResults.data.testGroups[testGroupIndex] = {
+      tests: {}
+    }
+  }
+
+  if (!store.bufferedFrameTestResults.data.testGroups[testGroupIndex].tests[testIndex]) {
+    store.bufferedFrameTestResults.data.testGroups[testGroupIndex].tests[testIndex] = {
+      frames: {}
+    }
+  }
+
+  store.bufferedFrameTestResults.data.testGroups[testGroupIndex].tests[testIndex].frames[frameIndex] = {
+    ...store.bufferedFrameTestResults.data.testGroups[testGroupIndex].tests[testIndex].frames[frameIndex],
+    ...updates
+  }
+
   if (updates.state === PASSED) {
     frameIndex++
 
     if (!frames[frameIndex]) {
       test.state = PASSED
-      message.updates.test = { state: PASSED }
+      store.bufferedFrameTestResults.data.testGroups[testGroupIndex].tests[testIndex].state = PASSED
 
       if (tests.every(test => test.state === PASSED)) {
         testGroup.state = PASSED
-        message.updates.testGroup = { state: PASSED }
+        store.bufferedFrameTestResults.data.testGroups[testGroupIndex].state = PASSED
       }
 
       if (testGroups.every(testGroup => testGroup.state === PASSED)) {
         data.state = PASSED
-        message.updates.data = { state: PASSED }
+        store.bufferedFrameTestResults.data.state = PASSED
       }
 
       if (allTests) {
@@ -639,13 +672,18 @@ const handleFrameTestResult = updates => {
     }
   } else if (updates.state === FAILED) {
     test.state = FAILED
-    message.updates.test = { state: FAILED }
+    store.bufferedFrameTestResults.data.testGroups[testGroupIndex].tests[testIndex].state = FAILED
     testGroup.state = FAILED
-    message.updates.testGroup = { state: FAILED }
+    store.bufferedFrameTestResults.data.testGroups[testGroupIndex].state = FAILED
     data.state = FAILED
-    message.updates.data = { state: FAILED }
+    store.bufferedFrameTestResults.data.state = FAILED
     stopTesting()
   }
+
+  store.bufferedFrameTestResults.state = state
+  store.bufferedFrameTestResults.testGroupIndex = testGroupIndex
+  store.bufferedFrameTestResults.testIndex = testIndex
+  store.bufferedFrameTestResults.frameIndex = frameIndex
 
   updateStore({
     state,
@@ -654,15 +692,6 @@ const handleFrameTestResult = updates => {
     frameIndex,
     data
   })
-
-  message.updates.store = {
-    state,
-    testGroupIndex,
-    testIndex,
-    frameIndex
-  }
-
-  chrome.runtime.sendMessage(message)
 }
 
 /**

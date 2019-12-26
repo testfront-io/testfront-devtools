@@ -65,41 +65,56 @@ const addFrame = ({ store, message }) => {
 }
 
 /**
- * Updates the provided frame, test, testGroup, data, and store.
+ * Updates multiple frames, tests, testGroups, data, and store.
  * @param {object} store
  * @param {object} message
  */
-const handleFrameTestResult = ({ store, message }) => {
-  const { testGroupIndex, testIndex, frameIndex, updates } = message
+const handleBufferedFrameTestResults = ({ store, message }) => {
+  const { bufferedFrameTestResults } = message
+  const { data: bufferedData, ...bufferedUpdates } = bufferedFrameTestResults
+  const { testGroups: bufferedTestGroups, ...bufferedDataUpdates } = bufferedData
 
   store.updateStore(store => {
     if (store.state !== TESTING) {
       return
     }
 
-    const data = message.updates.data || {}
     const testGroups = [ ...store.data.testGroups ]
-    const testGroup = testGroups[testGroupIndex] && { ...testGroups[testGroupIndex], ...(updates.testGroup || {}) }
-    const tests = testGroup && [ ...testGroup.tests ]
-    const test = tests && tests[testIndex] && { ...tests[testIndex], ...(updates.test || {}) }
-    const frames = test && [ ...test.frames ]
-    const frame = frames && frames[frameIndex] && { ...frames[frameIndex], ...updates.frame }
 
-    if (!frame) {
-      return
+    const updates = {
+      ...bufferedUpdates,
+      data: {
+        ...bufferedDataUpdates,
+        testGroups
+      }
     }
 
-    frames[frameIndex] = frame
-    test.frames = frames
-    tests[testIndex] = test
-    testGroup.tests = tests
-    testGroups[testGroupIndex] = testGroup
-    data.testGroups = testGroups
+    for (let testGroupIndex in bufferedTestGroups) {
+      const { tests, ...testGroupUpdates } = bufferedTestGroups[testGroupIndex]
 
-    return {
-      ...updates.store,
-      data
+      testGroups[testGroupIndex] = {
+        ...testGroups[testGroupIndex],
+        ...testGroupUpdates
+      }
+
+      for (let testIndex in tests) {
+        const { frames, ...testUpdates } = bufferedTestGroups[testGroupIndex].tests[testIndex]
+
+        testGroups[testGroupIndex].tests[testIndex] = {
+          ...testGroups[testGroupIndex].tests[testIndex],
+          ...testUpdates
+        }
+
+        for (let frameIndex in frames) {
+          testGroups[testGroupIndex].tests[testIndex].frames[frameIndex] = {
+            ...testGroups[testGroupIndex].tests[testIndex].frames[frameIndex],
+            ...frames[frameIndex]
+          }
+        }
+      }
     }
+
+    return updates
   })
 }
 
@@ -144,8 +159,8 @@ const getTabRef = (store) => {
         addFrame({ store: tabRef.store, message })
         break
 
-      case `handleFrameTestResult`:
-        handleFrameTestResult({ store: tabRef.store, message })
+      case `handleBufferedFrameTestResults`:
+        handleBufferedFrameTestResults({ store: tabRef.store, message })
         break
 
       case `consoleLog`:
