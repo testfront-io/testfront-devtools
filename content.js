@@ -29,8 +29,8 @@ let store = {
     testGroups: [],
 
     timeLimits: {
-      snapshotHtml: 3000,
-      simulateEvent: 3000
+      snapshotHtml: 10000,
+      simulateEvent: 10000
     },
 
     delays: {
