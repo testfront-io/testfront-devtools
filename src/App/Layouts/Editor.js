@@ -9,7 +9,7 @@ export default () => (
     <Store.Context.Consumer>
       {store => (
         <React.Fragment>
-          <Header />
+          <Header store={store} />
 
           <Editor.TestGroups
             store={store}

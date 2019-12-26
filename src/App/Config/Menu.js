@@ -22,7 +22,7 @@ export const Header = styled(UI.Header)`
   }
 `
 
-const Menu = styled((props) => {
+const Menu = styled(({ store, ...props }) => {
   const [ visible, setVisible ] = React.useState(false)
   const toggleVisibility = () => setVisible(!visible)
 
@@ -39,7 +39,7 @@ const Menu = styled((props) => {
         />
       </Header>
 
-      <Editor />
+      <Editor store={store} />
     </UI.Modal>
   ) : (
     <div { ...props }>

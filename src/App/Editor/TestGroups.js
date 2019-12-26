@@ -35,10 +35,6 @@ const TestGroups = styled(({ store, testGroups, ...props }) => {
         <UI.Button onClick={() => store.addTestGroup()}>
           <span>Add Test Group</span>
         </UI.Button>
-
-        <UI.Error>
-          {store.error.testGroups || ``}
-        </UI.Error>
       </section>
 
       <UI.Footer fixed={true}>

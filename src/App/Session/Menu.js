@@ -15,7 +15,7 @@ export const Header = styled(UI.Header)`
   }
 `
 
-const Menu = () => {
+const Menu = ({ store }) => {
   const [ visible, setVisible ] = React.useState(false)
   const toggleVisibility = () => setVisible(!visible)
 
@@ -36,7 +36,7 @@ const Menu = () => {
         )}
       </Context.Consumer>
 
-      <User.Editor />
+      <User.Editor store={store} />
     </UI.Modal>
   ) : (
     <User.Avatar onClick={toggleVisibility} />

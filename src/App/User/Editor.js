@@ -2,8 +2,10 @@ import React from 'react'
 import styled from 'styled-components'
 import * as UI from '../../UI'
 
-// Customize the default UI.Form a bit.
-export const Form = styled(UI.Form)`
+const Editor = styled(({ store, ...props }) => (
+  <UI.Form { ...props }>
+  </UI.Form>
+))`
   padding: 35px 10px 20px;
   margin: 0 auto;
 
@@ -16,9 +18,5 @@ export const Form = styled(UI.Form)`
     margin-bottom: 10px;
   }
 `
-
-const Editor = () => (
-  <Form />
-)
 
 export default Editor

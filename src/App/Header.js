@@ -12,17 +12,17 @@ export const Container = styled(UI.Header)`
   background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(63, 63, 63, 1)`)};
   box-shadow: 0 -3px 6px 6px rgba(0, 0, 0, 0.05);
 
-  ${User.Avatar} {
-    position: absolute;
-    top: 5px;
-    right: 10px;
-    cursor: pointer;
-  }
-
-  ${Config.Menu} {
+  > ${Config.Menu} {
     position: absolute;
     top: 5px;
     right: 35px;
+    cursor: pointer;
+  }
+
+  > ${User.Avatar} {
+    position: absolute;
+    top: 5px;
+    right: 10px;
     cursor: pointer;
   }
 `
@@ -36,7 +36,7 @@ const LogoContainer = styled.div`
   padding: 5px 10px;
 `
 
-const Header = (props) => (
+const Header = ({ store, ...props }) => (
   <Container { ...props }>
     <LogoContainer>
       <Link to='/'>
@@ -44,8 +44,8 @@ const Header = (props) => (
       </Link>
     </LogoContainer>
 
-    <Config.Menu />
-    <Session.Menu />
+    <Config.Menu store={store} />
+    <Session.Menu store={store} />
   </Container>
 )
 
