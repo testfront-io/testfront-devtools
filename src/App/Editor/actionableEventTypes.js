@@ -1,9 +1,20 @@
 const actionableEventTypes = [
+  [`Location`, [
+    `reload`,
+    `navigate`,
+    `hashchange`
+  ]],
+
+  [`History`, [
+    `pushstate`,
+    `popstate`
+  ]],
+
   [`Clicks`, [
     `click`,
     `contextmenu`,
     `dblclick`,
-    `auxclick`,
+    `auxclick`
   ]],
 
   [`Inputs`, [
@@ -35,7 +46,6 @@ const actionableEventTypes = [
   ]],
 
   [`Window`, [
-    `hashchange`,
     `resize`,
     `close`,
     `scroll`,

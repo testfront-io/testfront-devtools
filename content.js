@@ -29,8 +29,8 @@ let store = {
     testGroups: [],
 
     timeLimits: {
-      snapshotHtml: 10000,
-      simulateEvent: 10000
+      snapshot: 10000,
+      event: 10000
     },
 
     delays: {
@@ -39,17 +39,58 @@ let store = {
         change: 0
       }
     }
+  },
+
+  // These exist only within this content script.
+  bufferedFrameTestResults: null,
+  locationEventListeners: {}, // Since browsers don't have a great way to confirm location changes,
+  location: {                 // we have to be clever and record/confirm these "events" manually.
+    pathname: window.location.pathname,
+    hash: window.location.hash
   }
 }
 
 /**
- * Updates the store by extending it. Also extends `store.data` if `updates.data` is provided.
- *
- * If `store.state` is changed to RECORDING, adds the initial snapshot and sets the event listeners for the current test.
- * If `store.state` is changed from RECORDING to something else, unsets the event listeners.
- * If `store.state` is changed to TESTING, compares the first frame's html to the current snapshot html.
+ * When recording or testing, the window might be reloaded.
+ * We'll want to synchronously reload the store in this case,
+ * so that we can immediately resume recording or testing.
  */
-const updateStore = updates => {
+const storeKey = `__TestFront_content_script_store`
+const initializeStore = () => {
+  let savedStore = null
+
+  try {
+    savedStore = JSON.parse(window.localStorage.getItem(storeKey))
+  } catch (error) {
+  }
+
+  if (!savedStore) {
+    // Store not saved, so get the initial state from dev tools.
+    chrome.runtime.sendMessage({ command: `initializeContentStore` })
+    return
+  }
+
+  // We're in the middle of recording or testing.
+  const eventType = savedStore.location.pathname === window.location.pathname && savedStore.location.hash === window.location.hash
+    ? `reload`
+    : `navigate`
+
+  window.localStorage.removeItem(storeKey)
+
+  // We've either reloaded or navigated. This will prevent the "pushstate" event in `setStoreLocation`.
+  savedStore.location = {
+    pathname: window.location.pathname,
+    hash: window.location.hash
+  }
+
+  updateStore(savedStore, eventType)
+}
+
+/**
+ * Updates the store by extending it. Also extends `store.data` if `updates.data` is provided.
+ * Also performs necessary side effects when starting/stopping recording/testing.
+ */
+const updateStore = (updates, eventType) => {
   const startRecording = store.state !== RECORDING && updates.state === RECORDING
   const stopRecording = store.state === RECORDING && updates.state && updates.state !== RECORDING
   const startTesting = store.state !== TESTING && updates.state === TESTING
@@ -67,45 +108,20 @@ const updateStore = updates => {
   }
 
   if (startRecording) {
+    addLocationFrame({ eventType })
     addCurrentSnapshotHtml()
     setCurrentTestEventListeners()
   } else if (stopRecording) {
     setEventListeners([])
   } else if (startTesting) {
+    compareLocationFrame({ eventType })
     compareCurrentSnapshotHtml()
     simulateCurrentFrameEvent()
   }
 }
 
 /**
- * When recording, adds the snapshot html to the current test.
- */
-const addCurrentSnapshotHtml = () => {
-  if (store.state !== RECORDING) {
-    return
-  }
-
-  const { testGroupIndex, testIndex } = store
-  const { testGroups } = store.data
-  const testGroup = testGroups[testGroupIndex]
-  const tests = testGroup && testGroup.tests
-  const test = tests && tests[testIndex]
-  const snapshotSelector = test && test.snapshotSelector
-
-  if (!snapshotSelector) {
-    return
-  }
-
-  const snapshotContainer = document.querySelector(snapshotSelector)
-  const html = snapshotContainer && snapshotContainer.innerHTML
-
-  if (typeof html === `string`) {
-    addFrame({ html })
-  }
-}
-
-/**
- * Adds the `frame` to the current test and sends the same `frame` to dev tools.
+ * When recording, adds the provided `frame` to the current test and sends the same `frame` to dev tools.
  * @param {object} frame
  */
 const addFrame = frame => {
@@ -134,121 +150,6 @@ const addFrame = frame => {
   updateStore({ data })
 
   chrome.runtime.sendMessage({ command: `addFrame`, frame })
-}
-
-/**
- * Keep track of event listeners.
- */
-const eventListeners = {}
-
-/**
- * When recording, sets the event listeners for the current test.
- */
-const setCurrentTestEventListeners = () => {
-  if (store.state !== RECORDING) {
-    return
-  }
-
-  const { testGroupIndex, testIndex } = store
-  const { testGroups } = store.data
-  const testGroup = testGroups[testGroupIndex]
-  const tests = testGroup && testGroup.tests
-  const test = tests && tests[testIndex]
-  const eventTypes = test && test.eventTypes
-
-  if (eventTypes) {
-    setEventListeners(eventTypes)
-  }
-}
-
-/**
- * Sets the event listeners for the provided `eventTypes`.
- * @param {array} eventTypes
- */
-const setEventListeners = eventTypes => {
-  for (let eventType in eventListeners) {
-    removeEventListener(eventType)
-  }
-
-  for (let eventType of eventTypes) {
-    addEventListener(eventType)
-  }
-}
-
-/**
- * Removes the existing event listener for the provided `eventType`.
- * @param {string} eventType
- */
-const removeEventListener = eventType => {
-  if (eventListeners[eventType]) {
-    document.removeEventListener(eventType, eventListeners[eventType], true)
-    delete eventListeners[eventType]
-  }
-}
-
-/**
- * Adds an event listener for the provided `eventType` and sends the `eventType` and `targetSelector` when triggered.
- * @param {string} eventType
- */
-const addEventListener = eventType => {
-  if (specialEventListeners[eventType]) {
-    eventListeners[eventType] = specialEventListeners[eventType]
-  } else {
-    eventListeners[eventType] = (event) => {
-      const targetSelector = getTargetSelector(event.target)
-
-      if (targetSelector) {
-        addFrame({ eventType, targetSelector })
-      }
-    }
-  }
-
-  document.addEventListener(eventType, eventListeners[eventType], true)
-}
-
-/**
- * Some events need special listeners.
- */
-const specialEventListeners = {
-  input: event => {
-    const eventType = `input`
-    const targetSelector = getTargetSelector(event.target)
-    const value = event.target.value || ``
-    const id = event.target.id || undefined
-    const name = event.target.getAttribute(`name`) || undefined
-    const placeholder = event.target.getAttribute(`placeholder`) || undefined
-
-    if (targetSelector) {
-      addFrame({
-        eventType,
-        targetSelector,
-        value,
-        id,
-        name,
-        placeholder
-      })
-    }
-  },
-
-  change: event => {
-    const eventType = `change`
-    const targetSelector = getTargetSelector(event.target)
-    const value = event.target.value || ``
-    const id = event.target.id || undefined
-    const name = event.target.getAttribute(`name`) || undefined
-    const placeholder = event.target.getAttribute(`placeholder`) || undefined
-
-    if (targetSelector) {
-      addFrame({
-        eventType,
-        targetSelector,
-        value,
-        id,
-        name,
-        placeholder
-      })
-    }
-  }
 }
 
 /**
@@ -332,11 +233,11 @@ const getSimplestElementSelector = (element, attributes = [`name`, `placeholder`
 }
 
 /**
- * When testing, keep track of timeouts.
+ * Keep track of timeouts.
  */
 const timeouts = {
-  snapshotHtml: -1,
-  simulateEvent: -1
+  snapshot: -1,
+  event: -1
 }
 
 /**
@@ -351,58 +252,128 @@ const clearTimeouts = (keys = Object.keys(timeouts)) => {
 }
 
 /**
- * Observe document mutations and either record or test (compare) the current snapshot html.
+ * Keep track of event listeners.
  */
-const documentObserver = new MutationObserver(() => {
-  addCurrentSnapshotHtml()
-  compareCurrentSnapshotHtml()
-})
-
-documentObserver.observe(document.documentElement, {
-  attributes: true,
-  childList: true,
-  subtree: true
-})
+const eventListeners = {}
 
 /**
- * When testing, compares the current snapshot html to the current frame's html.
+ * When recording, sets the event listeners for the current test.
  */
-const compareCurrentSnapshotHtml = () => {
-  if (store.state !== TESTING) {
+const setCurrentTestEventListeners = () => {
+  if (store.state !== RECORDING) {
     return
   }
 
-  const { testGroupIndex, testIndex, frameIndex } = store
+  const { testGroupIndex, testIndex } = store
   const { testGroups } = store.data
   const testGroup = testGroups[testGroupIndex]
   const tests = testGroup && testGroup.tests
   const test = tests && tests[testIndex]
+  const eventTypes = test && test.eventTypes
 
-  if (!test) {
+  if (eventTypes) {
+    setEventListeners(eventTypes)
+  }
+}
+
+/**
+ * Sets the event listeners for the provided `eventTypes`.
+ * @param {array} eventTypes
+ */
+const setEventListeners = eventTypes => {
+  for (let eventType in eventListeners) {
+    removeEventListener(eventType)
+  }
+
+  for (let eventType of eventTypes) {
+    addEventListener(eventType)
+  }
+}
+
+/**
+ * Removes the existing event listener for the provided `eventType`.
+ * @param {string} eventType
+ */
+const removeEventListener = eventType => {
+  if (eventListeners[eventType]) {
+    if (locationEventTypes[eventType]) {
+      delete store.locationEventListeners[eventType]
+    } else if (typeof eventListeners[eventType] === `function`) {
+      document.removeEventListener(eventType, eventListeners[eventType], true)
+    }
+
+    delete eventListeners[eventType]
+  }
+}
+
+/**
+ * Adds an event listener for the provided `eventType` and sends the `eventType` and `targetSelector` when triggered.
+ * @param {string} eventType
+ */
+const addEventListener = eventType => {
+  if (locationEventTypes[eventType]) {
+    store.locationEventListeners[eventType] = true
+    eventListeners[eventType] = true
     return
   }
 
-  const { snapshotSelector, frames } = test
-  const frame = frames && frames[frameIndex]
+  if (specialEventListeners[eventType]) {
+    eventListeners[eventType] = specialEventListeners[eventType]
+  } else {
+    eventListeners[eventType] = (event) => {
+      const targetSelector = getTargetSelector(event.target)
 
-  if (!snapshotSelector || !frame || typeof frame.html === `undefined`) {
-    return
+      if (targetSelector) {
+        addFrame({ eventType, targetSelector })
+      }
+    }
   }
 
-  const snapshotContainer = document.querySelector(snapshotSelector)
-  const html = snapshotContainer && snapshotContainer.innerHTML
+  document.addEventListener(eventType, eventListeners[eventType], true)
+}
 
-  if (html === frame.html) {
-    clearTimeouts([`snapshotHtml`])
-    handleFrameTestResult({ state: PASSED })
-  } else if (timeouts.snapshotHtml < 0) {
-    timeouts.snapshotHtml = setTimeout(() => {
-      const snapshotContainer = document.querySelector(snapshotSelector)
-      const html = snapshotContainer && snapshotContainer.innerHTML
+/**
+ * Some events can be listened to, but need special handling.
+ */
+const specialEventListeners = {
+  input: event => {
+    const eventType = `input`
+    const targetSelector = getTargetSelector(event.target)
+    const value = event.target.value || ``
+    const id = event.target.id || undefined
+    const name = event.target.getAttribute(`name`) || undefined
+    const placeholder = event.target.getAttribute(`placeholder`) || undefined
 
-      timeouts.snapshotHtml = -1
-      handleFrameTestResult({ state: FAILED, error: { html } })
-    }, store.data.timeLimits.snapshotHtml)
+    if (targetSelector) {
+      addFrame({
+        eventType,
+        targetSelector,
+        value,
+        id,
+        name,
+        placeholder
+      })
+    }
+  },
+
+  change: event => {
+    const eventType = `change`
+    const targetSelector = getTargetSelector(event.target)
+    const value = event.target.value || ``
+    const id = event.target.id || undefined
+    const name = event.target.getAttribute(`name`) || undefined
+    const placeholder = event.target.getAttribute(`placeholder`) || undefined
+
+    if (targetSelector) {
+      addFrame({
+        eventType,
+        targetSelector,
+        value,
+        id,
+        name,
+        placeholder
+      })
+    }
   }
 }
 
@@ -427,14 +398,32 @@ const simulateCurrentFrameEvent = () => {
   }
 
   if (simulateEvent(frame)) {
-    clearTimeouts([`simulateEvent`])
+    clearTimeouts([`event`])
     handleFrameTestResult({ state: PASSED })
-  } else if (timeouts.simulateEvent < 0) {
-    timeouts.simulateEvent = setTimeout(() => {
-      timeouts.simulateEvent = -1
-      handleFrameTestResult({ state: FAILED, error: { message: `Target not found.` } })
-    }, timeLimits.simulateEvent)
+  } else if (timeouts.event < 0) {
+    timeouts.event = setTimeout(() => {
+      timeouts.event = -1
+
+      handleFrameTestResult({
+        state: FAILED,
+        error: !locationEventTypes[frame.eventType] ? {  // TODO find a better place to timeout the location "events"
+          message: `Target not found.`
+        } : {
+          location: {
+            pathname: window.location.pathname,
+            hash: window.location.hash
+          }
+        }
+      })
+    }, timeLimits.event)
   }
+}
+
+/**
+ * Some events are better simulated by calling the method attached to them.
+ */
+const methodEventTypes = {
+  click: true
 }
 
 /**
@@ -444,12 +433,23 @@ const simulateCurrentFrameEvent = () => {
  */
 const simulateEvent = frame => {
   const { eventType, targetSelector } = frame
-  const element = specialEventSimulator[eventType]
-    ? specialEventSimulator[eventType](frame)
-    : document.querySelector(targetSelector)
+  let element = null
+
+  if (locationEventTypes[eventType]) {
+    return  // TODO find a better place to timeout the location "events"
+  } else if (specialEventSimulator[eventType]) {
+    element = specialEventSimulator[eventType](frame)
+  } else {
+    element = document.querySelector(targetSelector)
+  }
 
   if (!element) {
     return false
+  }
+
+  if (methodEventTypes[eventType] && typeof element[eventType] === `function`) {
+    element[eventType]()
+    return true
   }
 
   let event
@@ -524,15 +524,179 @@ const specialEventSimulator = {
 }
 
 /**
- * Loop for comparing html and simulating events when testing.
+ * Location "events" need to be recorded/confirmed manually.
  */
-const main = () => {
-  compareCurrentSnapshotHtml()
-  simulateCurrentFrameEvent()
-  sendFrameTestResults()
-  window.requestAnimationFrame(main)
+const locationEventTypes = {
+  reload: true,
+  navigate: true,
+  hashchange: true,
+  pushstate: true,
+  popstate: true
 }
-window.requestAnimationFrame(main)
+
+/**
+ * Sets `store.location` and runs `addLocationFrame` and `compareLocationFrame`, if changed.
+ */
+const setStoreLocation = () => {
+  if (
+    store.location.pathname !== window.location.pathname
+    || store.location.hash !== window.location.hash
+  ) {
+    store.location = {
+      pathname: window.location.pathname,
+      hash: window.location.hash
+    }
+
+    const eventType = `pushstate`
+    addLocationFrame({ eventType })
+    compareLocationFrame({ eventType })
+  }
+}
+
+/**
+ * When recording, adds a frame describing the location "event" if it meets the necessary criteria.
+ */
+const addLocationFrame = ({
+  eventType,
+  location = {
+    pathname: window.location.pathname,
+    hash: window.location.hash
+  }
+}) => {
+  if (store.state !== RECORDING || !store.locationEventListeners[eventType]) {
+    return
+  }
+
+  addFrame({ eventType, location })
+}
+
+/**
+ * When testing, compares and confirms location updates as described by the current frame.
+ */
+const compareLocationFrame = ({ eventType }) => {
+  if (store.state !== TESTING) {
+    return
+  }
+
+  const { testGroupIndex, testIndex, frameIndex } = store
+  const { testGroups } = store.data
+  const testGroup = testGroups[testGroupIndex]
+  const tests = testGroup && testGroup.tests
+  const test = tests && tests[testIndex]
+
+  if (!test) {
+    return
+  }
+
+  const { frames } = test
+  const frame = frames && frames[frameIndex]
+
+  if (!frame || !frame.eventType || frame.eventType !== eventType || !locationEventTypes[eventType]) {
+    return
+  }
+
+  if (confirmLocationEvent(frame)) {
+    clearTimeouts([`event`]) // TODO use separate time limit for location confirmations?
+    handleFrameTestResult({ state: PASSED })
+  }/* else if (timeouts.event < 0) {
+    timeouts.event = setTimeout(() => {
+      timeouts.event = -1
+
+      handleFrameTestResult({
+        state: FAILED,
+        error: {
+          location: {
+            pathname: window.location.pathname,
+            hash: window.location.hash
+          }
+        }
+      })
+    }, store.data.timeLimits.event)
+  }*/
+}
+
+/**
+ * Confirm the location "event" resulted in the same location.
+ */
+const confirmLocationEvent = ({ eventType, location }) => {
+  if (store.state !== TESTING || !locationEventTypes[eventType]) {
+    return
+  }
+
+  return Boolean(
+    location.pathname === window.location.pathname
+    && location.hash === window.location.hash
+  )
+}
+
+/**
+ * When recording, adds the snapshot html to the current test.
+ */
+const addCurrentSnapshotHtml = () => {
+  if (store.state !== RECORDING) {
+    return
+  }
+
+  const { testGroupIndex, testIndex } = store
+  const { testGroups } = store.data
+  const testGroup = testGroups[testGroupIndex]
+  const tests = testGroup && testGroup.tests
+  const test = tests && tests[testIndex]
+  const snapshotSelector = test && test.snapshotSelector
+
+  if (!snapshotSelector) {
+    return
+  }
+
+  const snapshotContainer = document.querySelector(snapshotSelector)
+  const html = snapshotContainer && snapshotContainer.innerHTML
+
+  if (typeof html === `string`) {
+    addFrame({ html })
+  }
+}
+
+/**
+ * When testing, compares the current snapshot html to the current frame's html.
+ */
+const compareCurrentSnapshotHtml = () => {
+  if (store.state !== TESTING) {
+    return
+  }
+
+  const { testGroupIndex, testIndex, frameIndex } = store
+  const { testGroups } = store.data
+  const testGroup = testGroups[testGroupIndex]
+  const tests = testGroup && testGroup.tests
+  const test = tests && tests[testIndex]
+
+  if (!test) {
+    return
+  }
+
+  const { snapshotSelector, frames } = test
+  const frame = frames && frames[frameIndex]
+
+  if (!snapshotSelector || !frame || typeof frame.html === `undefined`) {
+    return
+  }
+
+  const snapshotContainer = document.querySelector(snapshotSelector)
+  const html = snapshotContainer && snapshotContainer.innerHTML
+
+  if (html === frame.html) {
+    clearTimeouts([`snapshot`])
+    handleFrameTestResult({ state: PASSED })
+  } else if (timeouts.snapshot < 0) {
+    timeouts.snapshot = setTimeout(() => {
+      const snapshotContainer = document.querySelector(snapshotSelector)
+      const html = snapshotContainer && snapshotContainer.innerHTML
+
+      timeouts.snapshot = -1
+      handleFrameTestResult({ state: FAILED, error: { html } })
+    }, store.data.timeLimits.snapshot)
+  }
+}
 
 /**
  * Buffer the sending of frame test results.
@@ -695,6 +859,32 @@ const handleFrameTestResult = updates => {
 }
 
 /**
+ * Observe document mutations and either record or test (compare) the current snapshot html.
+ */
+const documentObserver = new MutationObserver(() => {
+  addCurrentSnapshotHtml()
+  compareCurrentSnapshotHtml()
+})
+
+documentObserver.observe(document.documentElement, {
+  attributes: true,
+  childList: true,
+  subtree: true
+})
+
+/**
+ * Loop for comparing snapshots and simulating events when testing.
+ */
+const main = () => {
+  setStoreLocation()
+  compareCurrentSnapshotHtml()
+  simulateCurrentFrameEvent()
+  sendFrameTestResults()
+  window.requestAnimationFrame(main)
+}
+window.requestAnimationFrame(main)
+
+/**
  * Handle messages from devtools.
  */
 // eslint-disable-next-line no-unused-vars
@@ -712,34 +902,30 @@ const handleDevToolsMessage = (message) => {
 }
 
 /**
- * When recording or testing, the window might be reloaded.
- * We'll want to synchronously reload the store in this case,
- * so that we can immediately resume recording or testing.
+ * We need to manually track location events.
  */
-const storeKey = `__TestFront_content_script_store`
+window.addEventListener(`hashchange`, () => {
+  const eventType = `hashchange`
+  addLocationFrame({ eventType })
+  compareLocationFrame({ eventType })
+}, true)
 
-const initializeStore = () => {
-  let savedStore = null
+window.addEventListener(`popstate`, () => {
+  const eventType = `popstate`
+  addLocationFrame({ eventType })
+  compareLocationFrame({ eventType })
+}, true)
 
-  try {
-    savedStore = JSON.parse(window.localStorage.getItem(storeKey))
-  } catch (error) {
-  }
-
-  if (!savedStore) {
-    // Get the initial store state from dev tools.
-    chrome.runtime.sendMessage({ command: `initializeContentStore` })
-  } else {
-    // We're in the middle of recording or testing.
-    window.localStorage.removeItem(storeKey)
-    updateStore(savedStore)
-  }
-}
-
-initializeStore()
-
+/**
+ * Save the store when unloading the page.
+ */
 window.addEventListener(`unload`, () => {
   if (store.state === RECORDING || store.state === TESTING) {
     window.localStorage.setItem(storeKey, JSON.stringify(store))
   }
-})
+}, true)
+
+/**
+ * Initialization.
+ */
+initializeStore()

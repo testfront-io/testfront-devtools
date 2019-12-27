@@ -238,8 +238,8 @@ const Provider = ({ children }) => {
       }*/],
 
       timeLimits: {
-        snapshotHtml: 10000,
-        simulateEvent: 10000
+        snapshot: 10000,
+        event: 10000
       },
 
       delays: {
@@ -553,29 +553,41 @@ const Provider = ({ children }) => {
       }
     })),
 
-    addTest: ({ testGroupIndex, test = {} }) => store.updateStore(store => ({
-      data: {
-        testGroups: [
-          ...store.data.testGroups.slice(0, testGroupIndex),
-          {
-            ...store.data.testGroups[testGroupIndex],
-            tests: [
-              ...store.data.testGroups[testGroupIndex].tests,
-              {
-                state: UNTESTED,
-                description: ``,
-                snapshotSelector: (store.data.testGroups[testGroupIndex].tests[store.data.testGroups[testGroupIndex].tests.length - 1] && store.data.testGroups[testGroupIndex].tests[store.data.testGroups[testGroupIndex].tests.length - 1].snapshotSelector) || `html`,
-                eventTypes: [ `click`, `input`, `change`, `submit` ],
-                frames: [],
-                skip: false,
-                ...test
-              }
-            ]
-          },
-          ...store.data.testGroups.slice(testGroupIndex + 1)
-        ]
+    addTest: ({ testGroupIndex, test = {} }) => store.updateStore(store => {
+      const lastTest = store.data.testGroups[testGroupIndex].tests[store.data.testGroups[testGroupIndex].tests.length - 1]
+
+      return {
+        data: {
+          testGroups: [
+            ...store.data.testGroups.slice(0, testGroupIndex),
+            {
+              ...store.data.testGroups[testGroupIndex],
+              tests: [
+                ...store.data.testGroups[testGroupIndex].tests,
+                {
+                  state: UNTESTED,
+                  description: ``,
+                  snapshotSelector: (lastTest && lastTest.snapshotSelector) || `html`,
+                  eventTypes: (lastTest && lastTest.eventTypes) || [
+                    `reload`,
+                    `navigate`,
+                    `pushstate`,
+                    `click`,
+                    `input`,
+                    `change`,
+                    `submit`
+                  ],
+                  frames: [],
+                  skip: false,
+                  ...test
+                }
+              ]
+            },
+            ...store.data.testGroups.slice(testGroupIndex + 1)
+          ]
+        }
       }
-    })),
+    }),
 
     updateTest: ({ testGroupIndex, testIndex, updates }) => store.updateStore(store => ({
       data: {

@@ -29,16 +29,16 @@ const Editor = styled(({ store, onSubmit, ...props }) => {
       <section>
         <UI.Input
           type='number'
-          name='timeLimits.snapshotHtml'
+          name='timeLimits.snapshot'
           placeholder='Snapshot Time Limit (ms)'
-          value={store.data.timeLimits.snapshotHtml}
+          value={store.data.timeLimits.snapshot}
         />
 
         <UI.Input
           type='number'
-          name='timeLimits.simulateEvent'
-          placeholder='Simulate Event Time Limit (ms)'
-          value={store.data.timeLimits.simulateEvent}
+          name='timeLimits.event'
+          placeholder='Event Time Limit (ms)'
+          value={store.data.timeLimits.event}
         />
       </section>
 

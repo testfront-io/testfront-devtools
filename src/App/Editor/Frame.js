@@ -43,42 +43,87 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
     </aside>
   )
 
-  return typeof frame.html !== `undefined` ? (
-    <div { ...props }>
-      <UI.StateIcon
-        store={store}
-        testGroupIndex={testGroupIndex}
-        testGroup={testGroup}
-        testIndex={testIndex}
-        test={test}
-        frameIndex={frameIndex}
-        frame={frame}
-        iconKey={`device-camera`}
-        width={15}
-        height={15}
-      />
+  const locationEventTypeToText = {
+    reload: `Reloaded`,
+    navigate: `Navigated to`,
+    hashchange: `Hash changed to`,
+    pushstate: `Pushed history state to`,
+    popstate: `Popped history state to`
+  }
 
-      <span>Snapshot</span>
+  if (typeof frame.html !== `undefined`) {
+    return (
+      <div { ...props }>
+        <UI.StateIcon
+          store={store}
+          testGroupIndex={testGroupIndex}
+          testGroup={testGroup}
+          testIndex={testIndex}
+          test={test}
+          frameIndex={frameIndex}
+          frame={frame}
+          iconKey={`device-camera`}
+          width={15}
+          height={15}
+        />
 
-      {frame.error && typeof frame.error.html !== `undefined` && (
-        <div>
-          {(typeof frame.html === `string` && typeof frame.error.html === `string`) ? (
-            <pre dangerouslySetInnerHTML={{
-              __html: utilities.getPrettyHtml(utilities.getDiffs(frame.html, frame.error.html))
-            }} />
-          ) : (
-          <span>The recorded container {frame.html === null ? `was not found` : `was found`}, while the tested container {frame.html === null ? `was` : `was not`}.</span>
-          )}
-        </div>
-      )}
+        <span>Snapshot</span>
 
-      {store.state === IDLE && (isDeleting ? deleteConfirmation : (
-        <aside>
-          {deleteButton}
-        </aside>
-      ))}
-    </div>
-  ) : (
+        {frame.error && typeof frame.error.html !== `undefined` && (
+          <div>
+            {(typeof frame.html === `string` && typeof frame.error.html === `string`) ? (
+              <pre dangerouslySetInnerHTML={{
+                __html: utilities.getPrettyHtml(utilities.getDiffs(frame.html, frame.error.html))
+              }} />
+            ) : (
+              <span>The recorded container {frame.html === null ? `was not found` : `was found`}, while the tested container {frame.html === null ? `was` : `was not`}.</span>
+            )}
+          </div>
+        )}
+
+        {store.state === IDLE && (isDeleting ? deleteConfirmation : (
+          <aside>
+            {deleteButton}
+          </aside>
+        ))}
+      </div>
+    )
+  }
+
+  if (locationEventTypeToText[frame.eventType] && frame.location) {
+    return (
+      <div { ...props }>
+        <UI.StateIcon
+          store={store}
+          testGroupIndex={testGroupIndex}
+          testGroup={testGroup}
+          testIndex={testIndex}
+          test={test}
+          frameIndex={frameIndex}
+          frame={frame}
+          iconKey={`browser`}
+          width={15}
+          height={15}
+        />
+
+        <span>{locationEventTypeToText[frame.eventType]} <pre>{frame.location.pathname + frame.location.hash}</pre></span>
+
+        {frame.error && typeof frame.error.location !== `undefined` && (
+          <div>
+            <span>Location doesn't match.</span>
+          </div>
+        )}
+
+        {store.state === IDLE && (isDeleting ? deleteConfirmation : (
+          <aside>
+            {deleteButton}
+          </aside>
+        ))}
+      </div>
+    )
+  }
+
+  return (
     <div { ...props }>
       <UI.StateIcon
         store={store}
