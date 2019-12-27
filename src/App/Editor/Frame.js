@@ -108,12 +108,6 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
 
         <span>{locationEventTypeToText[frame.eventType]} <pre>{frame.location.pathname + frame.location.hash}</pre></span>
 
-        {frame.error && typeof frame.error.location !== `undefined` && (
-          <div>
-            <span>Location doesn't match.</span>
-          </div>
-        )}
-
         {store.state === IDLE && (isDeleting ? deleteConfirmation : (
           <aside>
             {deleteButton}
