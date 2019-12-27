@@ -1,4 +1,5 @@
 import React from 'react'
+import { matchPath } from 'react-router-dom'
 import styled from 'styled-components'
 import { mix } from 'polished'
 import octicons from 'octicons'
@@ -11,6 +12,15 @@ import {
 
   UNTESTED
 } from '../../constants'
+
+export const matchTestGroupPath = ({ store, testGroup }) => {
+  const { location } = store
+  const pathname = (location && location.pathname) || ``
+  const hash = (location && location.hash) || ``
+  const { path, exact, strict } = testGroup
+
+  return matchPath(pathname + hash, { path, exact, strict })
+}
 
 const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
   const [ isDeleting, setIsDeleting ] = React.useState(false)
@@ -242,7 +252,7 @@ const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
 })`
   position: relative;
   box-shadow: 0 -3px 6px 6px rgba(0, 0, 0, 0.05);
-  opacity: ${({ store, testGroupIndex, testGroup }) => (testGroup.skip || (store.state === RECORDING && store.testGroupIndex !== testGroupIndex)) ? 0.25 : 1 };
+  opacity: ${({ store, testGroupIndex, testGroup }) => (testGroup.skip || !matchTestGroupPath({ store, testGroup }) || (store.state === RECORDING && store.testGroupIndex !== testGroupIndex)) ? 0.25 : 1 };
   transition: opacity 0.25s ease-in-out;
 
   &:hover {

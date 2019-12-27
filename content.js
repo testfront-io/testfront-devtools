@@ -16,6 +16,11 @@ const FAILED = `FAILED`
 let store = {
   state: IDLE,
 
+  location: {
+    pathname: window.location.pathname,
+    hash: window.location.hash
+  },
+
   testGroupIndex: -1,
   testIndex: -1,
   frameIndex: -1,
@@ -41,13 +46,9 @@ let store = {
     }
   },
 
-  // These exist only within this content script.
-  bufferedFrameTestResults: null,
-  locationEventListeners: {}, // Since browsers don't have a great way to confirm location changes,
-  location: {                 // we have to be clever and record/confirm these "events" manually.
-    pathname: window.location.pathname,
-    hash: window.location.hash
-  }
+  /* These exist only within this content script. */
+  locationEventListeners: {},  // Browsers don't have a great way to confirm location changes so we have to be clever.
+  bufferedFrameTestResults: null
 }
 
 /**
@@ -66,23 +67,30 @@ const initializeStore = () => {
 
   if (!savedStore) {
     // Store not saved, so get the initial state from dev tools.
-    chrome.runtime.sendMessage({ command: `initializeContentStore` })
+    chrome.runtime.sendMessage({
+      command: `initializeContentStore`,
+      updates: {
+        location: store.location
+      }
+    })
     return
   }
 
   // We're in the middle of recording or testing.
-  const eventType = savedStore.location.pathname === window.location.pathname && savedStore.location.hash === window.location.hash
-    ? `reload`
+  const eventType = (
+    savedStore.location.pathname === window.location.pathname
+    && savedStore.location.hash === window.location.hash
+  ) ? `reload`
     : `navigate`
 
-  window.localStorage.removeItem(storeKey)
-
-  // We've either reloaded or navigated. This will prevent the "pushstate" event in `setStoreLocation`.
+  // We've either reloaded or navigated, so go ahead and set the current location
+  // to prevent the pushstate "event" in `setStoreLocation`.
   savedStore.location = {
     pathname: window.location.pathname,
     hash: window.location.hash
   }
 
+  window.localStorage.removeItem(storeKey)
   updateStore(savedStore, eventType)
 }
 
@@ -117,6 +125,10 @@ const updateStore = (updates, eventType) => {
     compareLocationFrame({ eventType })
     compareCurrentSnapshotHtml()
     simulateCurrentFrameEvent()
+  }
+
+  if (updates.location) {
+    sendLocation()
   }
 }
 
@@ -542,15 +554,29 @@ const setStoreLocation = () => {
     store.location.pathname !== window.location.pathname
     || store.location.hash !== window.location.hash
   ) {
-    store.location = {
-      pathname: window.location.pathname,
-      hash: window.location.hash
-    }
+    updateStore({
+      location: {
+        pathname: window.location.pathname,
+        hash: window.location.hash
+      }
+    })
 
     const eventType = `pushstate`
     addLocationFrame({ eventType })
     compareLocationFrame({ eventType })
   }
+}
+
+/**
+ * Send `store.location` to dev tools.
+ */
+const sendLocation = (location = store.location) => {
+  chrome.runtime.sendMessage({
+    command: `updateStore`,
+    updates: {
+      location
+    }
+  })
 }
 
 /**
@@ -885,23 +911,6 @@ const main = () => {
 window.requestAnimationFrame(main)
 
 /**
- * Handle messages from devtools.
- */
-// eslint-disable-next-line no-unused-vars
-const handleDevToolsMessage = (message) => {
-  switch (message.command) {
-    case `updateStore`:
-      return updateStore(message.updates)
-
-    case `consoleLog`:
-      return console.log(`handleDevToolsMessage:`, message)
-
-    default:
-      return console.warn(`Unrecognized command:`, message)
-  }
-}
-
-/**
  * We need to manually track location events.
  */
 window.addEventListener(`hashchange`, () => {
@@ -924,6 +933,26 @@ window.addEventListener(`unload`, () => {
     window.localStorage.setItem(storeKey, JSON.stringify(store))
   }
 }, true)
+
+/**
+ * Handle messages from devtools.
+ */
+// eslint-disable-next-line no-unused-vars
+const handleDevToolsMessage = (message) => {
+  switch (message.command) {
+    case `updateStore`:
+      return updateStore(message.updates)
+
+    case `sendLocation`:
+      return sendLocation()
+
+    case `consoleLog`:
+      return console.log(`handleDevToolsMessage:`, message)
+
+    default:
+      return console.warn(`Unrecognized command:`, message)
+  }
+}
 
 /**
  * Initialization.

@@ -137,11 +137,23 @@ const getStoreForContentScript = store => ({
 
 /**
  * Updates the content script's store when ready.
+ * Uses optional `message.updates` from content script.
  * @param {object} store
+ * @param {object} message
  */
-const initializeContentStore = store => store.updateStore(store => ({
+const initializeContentStore = ({ store, message }) => store.updateStore(store => ({
+  ...(message.updates || {}),
   shouldUpdateContentStore: true
 }))
+
+/**
+ * Updates the store using `message.updates`.
+ * @param {object} store
+ * @param {object} message
+ */
+const updateStore = ({ store, message }) => {
+  store.updateStore(store => message.updates)
+}
 
 /**
  * The tab needs a reference to the current `store` within its `onMessage` handlers.
@@ -152,7 +164,11 @@ const getTabRef = (store) => {
   tab.onMessage((message) => {
     switch (message.command) {
       case `initializeContentStore`:
-        initializeContentStore(tabRef.store)
+        initializeContentStore({ store: tabRef.store, message })
+        break
+
+      case `updateStore`:
+        updateStore({ store: tabRef.store, message })
         break
 
       case `addFrame`:
@@ -193,6 +209,8 @@ const Provider = ({ children }) => {
     error: ``,
 
     state: IDLE,
+
+    location: null,
 
     testGroupIndex: -1,
     testIndex: -1,
@@ -295,6 +313,8 @@ const Provider = ({ children }) => {
           ...updates,
           shouldUpdateContentStore: true
         }))
+
+        tab.sendMessage({ command: `sendLocation` })
       }
 
       fetch()
@@ -520,7 +540,7 @@ const Provider = ({ children }) => {
           ...store.data.testGroups,
           {
             state: UNTESTED,
-            path: `/`,
+            path: (store.location && (store.location.pathname || `` + store.location.hash || ``)) || `/`,
             exact: false,
             strict: false,
             skip: false,
