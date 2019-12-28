@@ -48,6 +48,7 @@ let store = {
 
   /* These exist only within this content script. */
   locationEventListeners: {},  // Browsers don't have a great way to confirm location changes so we have to be clever.
+  pendingTestGroupPath: false,
   bufferedFrameTestResults: null
 }
 
@@ -102,6 +103,7 @@ const updateStore = (updates, eventType) => {
   const startRecording = store.state !== RECORDING && updates.state === RECORDING
   const stopRecording = store.state === RECORDING && updates.state && updates.state !== RECORDING
   const startTesting = store.state !== TESTING && updates.state === TESTING
+  const stopTesting = store.state === TESTING && updates.state && updates.state !== TESTING
 
   if (updates.data) {
     updates.data = {
@@ -122,9 +124,12 @@ const updateStore = (updates, eventType) => {
   } else if (stopRecording) {
     setEventListeners([])
   } else if (startTesting) {
+    verifyTestGroupPath()
     compareLocationFrame({ eventType })
     compareCurrentSnapshotHtml()
     simulateCurrentFrameEvent()
+  } else if (stopTesting) {
+    clearTimeouts()
   }
 
   if (updates.location) {
@@ -393,7 +398,7 @@ const specialEventListeners = {
  * When testing, attempts to simulates the current frame event and updates the store based on the result.
  */
 const simulateCurrentFrameEvent = () => {
-  if (store.state !== TESTING) {
+  if (store.state !== TESTING || store.pendingTestGroupPath) {
     return
   }
 
@@ -580,6 +585,47 @@ const sendLocation = (location = store.location) => {
 }
 
 /**
+ * When testing and at the start of a test group (or test when running a single test),
+ * loads or pushes the current test group's path if it doesn't already match.
+ */
+const verifyTestGroupPath = () => {
+  if (
+    store.state !== TESTING
+    || store.frameIndex !== 0
+    || (store.testIndex !== 0 && store.allTests)
+  ) {
+    return
+  }
+
+  const { testGroupIndex } = store
+  const { testGroups } = store.data
+  const testGroup = testGroups[testGroupIndex]
+
+  if (!testGroup || matchTestGroupPath(testGroup)) {
+    store.pendingTestGroupPath = false
+    return
+  } else if (store.pendingTestGroupPath) {
+    // TODO figure out a better way to verify this?
+    return
+  }
+
+  switch (testGroup.behavior) {
+    case `load`:
+      store.pendingTestGroupPath = true
+      window.location.href = testGroup.path
+      break
+
+    case `push`:
+      store.pendingTestGroupPath = true
+      window.history.pushState({}, ``, testGroup.path)
+      break
+
+    default:
+      break
+  }
+}
+
+/**
  * When recording, adds a frame describing the location "event" if it meets the necessary criteria.
  */
 const addLocationFrame = ({
@@ -600,7 +646,7 @@ const addLocationFrame = ({
  * When testing, compares and confirms location updates as described by the current frame.
  */
 const compareLocationFrame = ({ eventType }) => {
-  if (store.state !== TESTING) {
+  if (store.state !== TESTING || store.pendingTestGroupPath) {
     return
   }
 
@@ -645,7 +691,7 @@ const compareLocationFrame = ({ eventType }) => {
  * Confirm the location "event" resulted in the same location.
  */
 const confirmLocationEvent = ({ eventType, location }) => {
-  if (store.state !== TESTING || !locationEventTypes[eventType]) {
+  if (store.state !== TESTING || store.pendingTestGroupPath || !locationEventTypes[eventType]) {
     return
   }
 
@@ -686,7 +732,7 @@ const addCurrentSnapshotHtml = () => {
  * When testing, compares the current snapshot html to the current frame's html.
  */
 const compareCurrentSnapshotHtml = () => {
-  if (store.state !== TESTING) {
+  if (store.state !== TESTING || store.pendingTestGroupPath) {
     return
   }
 
@@ -885,6 +931,216 @@ const handleFrameTestResult = updates => {
 }
 
 /**
+ * `matchPath` from `react-router` and `pathtoRegexp` from `path-to-regexp`
+ * // TODO tried to keep this content.js script minimal but it looks like we may have to split it up and bundle it
+ */
+const matchPath = (() => {
+  /**
+   * Match matching groups in a regular expression.
+   */
+  var MATCHING_GROUP_REGEXP = /\((?!\?)/g;
+
+  /**
+   * Normalize the given path string,
+   * returning a regular expression.
+   *
+   * An empty array should be passed,
+   * which will contain the placeholder
+   * key names. For example "/user/:id" will
+   * then contain ["id"].
+   *
+   * @param  {String|RegExp|Array} path
+   * @param  {Array} keys
+   * @param  {Object} options
+   * @return {RegExp}
+   * @api private
+   */
+
+  function pathToRegexp(path, keys, options) {
+    options = options || {};
+    keys = keys || [];
+    var strict = options.strict;
+    var end = options.end !== false;
+    var flags = options.sensitive ? '' : 'i';
+    var extraOffset = 0;
+    var keysOffset = keys.length;
+    var i = 0;
+    var name = 0;
+    var m;
+
+    if (path instanceof RegExp) {
+      // eslint-disable-next-line no-cond-assign
+      while (m = MATCHING_GROUP_REGEXP.exec(path.source)) {
+        keys.push({
+          name: name++,
+          optional: false,
+          offset: m.index
+        });
+      }
+
+      return path;
+    }
+
+    if (Array.isArray(path)) {
+      // Map array parts into regexps and return their source. We also pass
+      // the same keys and options instance into every generation to get
+      // consistent matching groups before we join the sources together.
+      path = path.map(function (value) {
+        return pathToRegexp(value, keys, options).source;
+      });
+
+      return new RegExp('(?:' + path.join('|') + ')', flags);
+    }
+
+    path = ('^' + path + (strict ? '' : path[path.length - 1] === '/' ? '?' : '/?'))
+      .replace(/\/\(/g, '/(?:')
+      // eslint-disable-next-line no-useless-escape
+      .replace(/([\/\.])/g, '\\$1')
+      .replace(/(\\\/)?(\\\.)?:(\w+)(\(.*?\))?(\*)?(\?)?/g, function (match, slash, format, key, capture, star, optional, offset) {
+        slash = slash || '';
+        format = format || '';
+        capture = capture || '([^\\/' + format + ']+?)';
+        optional = optional || '';
+
+        keys.push({
+          name: key,
+          optional: !!optional,
+          offset: offset + extraOffset
+        });
+
+        var result = ''
+          + (optional ? '' : slash)
+          + '(?:'
+          + format + (optional ? slash : '') + capture
+          + (star ? '((?:[\\/' + format + '].+?)?)' : '')
+          + ')'
+          + optional;
+
+        extraOffset += result.length - match.length;
+
+        return result;
+      })
+      .replace(/\*/g, function (star, index) {
+        var len = keys.length
+
+        while (len-- > keysOffset && keys[len].offset > index) {
+          keys[len].offset += 3; // Replacement length minus asterisk length.
+        }
+
+        return '(.*)';
+      });
+
+    // This is a workaround for handling unnamed matching groups.
+    // eslint-disable-next-line no-cond-assign
+    while (m = MATCHING_GROUP_REGEXP.exec(path)) {
+      var escapeCount = 0;
+      var index = m.index;
+
+      while (path.charAt(--index) === '\\') {
+        escapeCount++;
+      }
+
+      // It's possible to escape the bracket.
+      if (escapeCount % 2 === 1) {
+        continue;
+      }
+
+      if (keysOffset + i === keys.length || keys[keysOffset + i].offset > m.index) {
+        keys.splice(keysOffset + i, 0, {
+          name: name++, // Unnamed matching groups must be consistently linear.
+          optional: false,
+          offset: m.index
+        });
+      }
+
+      i++;
+    }
+
+    // If the path is non-ending, match until the end or a slash.
+    path += (end ? '$' : (path[path.length - 1] === '/' ? '' : '(?=\\/|$)'));
+
+    return new RegExp(path, flags);
+  };
+
+  const cache = {};
+  const cacheLimit = 10000;
+  let cacheCount = 0;
+
+  function compilePath(path, options) {
+    const cacheKey = `${options.end}${options.strict}${options.sensitive}`;
+    const pathCache = cache[cacheKey] || (cache[cacheKey] = {});
+
+    if (pathCache[path]) return pathCache[path];
+
+    const keys = [];
+    const regexp = pathToRegexp(path, keys, options);
+    const result = { regexp, keys };
+
+    if (cacheCount < cacheLimit) {
+      pathCache[path] = result;
+      cacheCount++;
+    }
+
+    return result;
+  }
+
+  /**
+   * Public API for matching a URL pathname to a path.
+   */
+  return function (pathname, options = {}) {
+    if (typeof options === "string" || Array.isArray(options)) {
+      options = { path: options };
+    }
+
+    const { path, exact = false, strict = false, sensitive = false } = options;
+
+    const paths = [].concat(path);
+
+    return paths.reduce((matched, path) => {
+      if (!path && path !== "") return null;
+      if (matched) return matched;
+
+      const { regexp, keys } = compilePath(path, {
+        end: exact,
+        strict,
+        sensitive
+      });
+      const match = regexp.exec(pathname);
+
+      if (!match) return null;
+
+      const [url, ...values] = match;
+      const isExact = pathname === url;
+
+      if (exact && !isExact) return null;
+
+      return {
+        path, // the path used to match
+        url: path === "/" && url === "" ? "/" : url, // the matched portion of the URL
+        isExact, // whether or not we matched exactly
+        params: keys.reduce((memo, key, index) => {
+          memo[key.name] = values[index];
+          return memo;
+        }, {})
+      };
+    }, null);
+  }
+})()
+
+/**
+ * Uses `matchPath` from `react-router` to match the current `store.location` to the `testGroup.path`.
+ * @param {object} testGroup
+ */
+const matchTestGroupPath = testGroup => {
+  const { location } = store
+  const pathname = (location && location.pathname) || ``
+  const hash = (location && location.hash) || ``
+  const { path, exact, strict } = testGroup
+
+  return matchPath(pathname + hash, { path, exact, strict })
+}
+
+/**
  * Observe document mutations and either record or test (compare) the current snapshot html.
  */
 const documentObserver = new MutationObserver(() => {
@@ -903,6 +1159,7 @@ documentObserver.observe(document.documentElement, {
  */
 const main = () => {
   setStoreLocation()
+  verifyTestGroupPath()
   compareCurrentSnapshotHtml()
   simulateCurrentFrameEvent()
   sendFrameTestResults()

@@ -229,6 +229,7 @@ const Provider = ({ children }) => {
         exact: false,
         strict: false,
         skip: false,
+        behavior: `load`,
         tests: [{
           state: UNTESTED,
           description: ``,
@@ -544,6 +545,7 @@ const Provider = ({ children }) => {
             exact: false,
             strict: false,
             skip: false,
+            behavior: `load`,
             tests: [],
             ...testGroup
           }

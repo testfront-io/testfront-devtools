@@ -110,6 +110,19 @@ const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
 
               <span>Strict</span>
             </label>
+
+            <label>
+              <UI.Select
+                value={testGroup.behavior}
+                onChange={event => {
+                  const behavior = event.target.value
+                  store.updateTestGroup({ testGroupIndex, updates: { behavior } })
+                }}
+              >
+                <option value='load'>Load</option>
+                <option value='push'>Push</option>
+              </UI.Select>
+            </label>
           </aside>
         </UI.Input>
 
@@ -305,6 +318,54 @@ const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
           &:hover {
             > span {
               color: inherit;
+            }
+          }
+
+          > ${UI.Select} {
+            height: 13px;
+            cursor: pointer;
+
+            > select {
+              height: 13px;
+              padding: 0 1px 1px 13px;
+              border-bottom: 0;
+              font-size: 11px;
+              line-height: 1;
+              text-transform: uppercase;
+              color: gray;
+              background: transparent;
+              cursor: pointer;
+
+              &:focus {
+                color: inherit;
+                opacity: 1;
+
+                ~ b {
+                  color: inherit;
+                  opacity: 1;
+                }
+              }
+            }
+
+            > b {
+              left: 0;
+              right: auto;
+              padding: 1px;
+              font-size: 9px;
+              line-height: 13px;
+              color: white;
+              opacity: 0.5;
+              cursor: pointer;
+            }
+          }
+
+          &:hover {
+            > ${UI.Select} {
+              > select,
+              > b {
+                color: inherit;
+                opacity: 1;
+              }
             }
           }
         }
