@@ -3,7 +3,6 @@ import React from 'react'
 import * as API from '../../API'
 import Context from './Context'
 import * as UI from '../../UI'
-import tab from '../../tab'
 
 import {
   IDLE,
@@ -29,175 +28,13 @@ const local = {
 }
 
 /**
- * Adds the `message.frame` to the current test.
- * @param {object} store
- * @param {object} message
- */
-const addFrame = ({ store, message }) => {
-  const { frame } = message
-
-  store.updateStore(store => {
-    const { state, testGroupIndex, testIndex } = store
-
-    if (state !== RECORDING) {
-      return
-    }
-
-    const data = {}
-    const testGroups = [ ...store.data.testGroups ]
-    const testGroup = { ...testGroups[testGroupIndex] }
-    const tests = [ ...testGroup.tests ]
-    const test = { ...tests[testIndex] }
-    const frames = [ ...test.frames ]
-
-    frames.push(frame)
-    test.frames = frames
-    test.state = UNTESTED
-    tests[testIndex] = test
-    testGroup.state = UNTESTED
-    testGroup.tests = tests
-    testGroups[testGroupIndex] = testGroup
-    data.state = UNTESTED
-    data.testGroups = testGroups
-
-    return { data }
-  })
-}
-
-/**
- * Updates multiple frames, tests, testGroups, data, and store.
- * @param {object} store
- * @param {object} message
- */
-const handleBufferedFrameTestResults = ({ store, message }) => {
-  const { bufferedFrameTestResults } = message
-  const { data: bufferedData, ...bufferedUpdates } = bufferedFrameTestResults
-  const { testGroups: bufferedTestGroups, ...bufferedDataUpdates } = bufferedData
-
-  store.updateStore(store => {
-    if (store.state !== TESTING) {
-      return
-    }
-
-    const testGroups = [ ...store.data.testGroups ]
-
-    const updates = {
-      ...bufferedUpdates,
-      data: {
-        ...bufferedDataUpdates,
-        testGroups
-      }
-    }
-
-    for (let testGroupIndex in bufferedTestGroups) {
-      const { tests, ...testGroupUpdates } = bufferedTestGroups[testGroupIndex]
-
-      testGroups[testGroupIndex] = {
-        ...testGroups[testGroupIndex],
-        ...testGroupUpdates
-      }
-
-      for (let testIndex in tests) {
-        const { frames, ...testUpdates } = bufferedTestGroups[testGroupIndex].tests[testIndex]
-
-        testGroups[testGroupIndex].tests[testIndex] = {
-          ...testGroups[testGroupIndex].tests[testIndex],
-          ...testUpdates
-        }
-
-        for (let frameIndex in frames) {
-          testGroups[testGroupIndex].tests[testIndex].frames[frameIndex] = {
-            ...testGroups[testGroupIndex].tests[testIndex].frames[frameIndex],
-            ...frames[frameIndex]
-          }
-        }
-      }
-    }
-
-    return updates
-  })
-}
-
-/**
- * Gets the store as relevant to the content script.
- * @param {object} store
- */
-const getStoreForContentScript = store => ({
-  state: store.state,
-
-  testGroupIndex: store.testGroupIndex,
-  testIndex: store.testIndex,
-  frameIndex: store.frameIndex,
-
-  allTestGroups: store.allTestGroups,
-  allTests: store.allTests,
-
-  data: store.data
-})
-
-/**
- * Updates the content script's store when ready.
- * Uses optional `message.updates` from content script.
- * @param {object} store
- * @param {object} message
- */
-const initializeContentStore = ({ store, message }) => store.updateStore(store => ({
-  ...(message.updates || {}),
-  shouldUpdateContentStore: true
-}))
-
-/**
- * Updates the store using `message.updates`.
- * @param {object} store
- * @param {object} message
- */
-const updateStore = ({ store, message }) => {
-  store.updateStore(store => message.updates)
-}
-
-/**
- * The tab needs a reference to the current `store` within its `onMessage` handlers.
- */
-const getTabRef = (store) => {
-  const tabRef = { store }
-
-  tab.onMessage((message) => {
-    switch (message.command) {
-      case `initializeContentStore`:
-        initializeContentStore({ store: tabRef.store, message })
-        break
-
-      case `updateStore`:
-        updateStore({ store: tabRef.store, message })
-        break
-
-      case `addFrame`:
-        addFrame({ store: tabRef.store, message })
-        break
-
-      case `handleBufferedFrameTestResults`:
-        handleBufferedFrameTestResults({ store: tabRef.store, message })
-        break
-
-      case `consoleLog`:
-        return console.log(message)
-
-      default:
-        return console.warn(`Unrecognized command:`, message)
-    }
-  })
-
-  return tabRef
-}
-
-/**
  * Simple key-value store. Uses `chrome.storage.local` by default.
  * Use `store.updateStore(store => ({ source: 'server' }))` to use with `testfront-extension-server`.
  */
 const Provider = ({ children }) => {
   const [ timeouts ] = React.useState({})
   const [ store, setStore ] = React.useState({
-    tabRef: null,
+    tab: null,
     isConfigured: false,
     isInitialized: false,
     shouldSaveData: false,
@@ -269,12 +106,73 @@ const Provider = ({ children }) => {
       }
     },
 
+    initializeTab: () => setStore(store => {
+      const tab = chrome.runtime.connect({
+        name: `devtools-panel`
+      })
+
+      tab.postMessage({
+        tabId: chrome.devtools.inspectedWindow.tabId,
+        command: `initialize`
+      })
+
+      tab.sendMessage = (message, callback) => {
+        try {
+          chrome.devtools.inspectedWindow.eval(
+            `handleDevToolsMessage(${JSON.stringify(message)})`,
+            { useContentScriptContext: true },
+            callback
+          )
+        } catch (error) {
+          console.error(`devtools tab.sendMessage error:`, error)
+        }
+      }
+
+      tab.onMessage.addListener((message) => {
+        switch (message.command) {
+          case `initializeContentStore`:
+            store.updateStore(store => ({
+              ...(message.updates || {}),
+              shouldUpdateContentStore: true
+            }))
+            break
+
+          case `updateStore`:
+            store.updateStore(store => message.updates)
+            break
+
+          case `addFrame`:
+            store.addFrame(message.frame)
+            break
+
+          case `handleBufferedFrameTestResults`:
+            store.handleBufferedFrameTestResults(message.bufferedFrameTestResults)
+            break
+
+          case `consoleLog`:
+            return console.log(message)
+
+          default:
+            return console.warn(`Unrecognized command:`, message)
+        }
+      })
+
+      return {
+        ...store,
+        tab
+      }
+    }),
+
+    initializeLocation: () => setStore(store => {
+      store.tab.sendMessage({ command: `sendLocation` })
+      return store
+    }),
+
     configure: async () => {
       const { source, serverBaseURL } = await local.get([`source`, `serverBaseURL`])
 
       setStore(store => ({
         ...store,
-        tabRef: getTabRef(store),
         isConfigured: true,
         source: source || store.source,
         serverBaseURL: serverBaseURL || store.serverBaseURL
@@ -314,8 +212,6 @@ const Provider = ({ children }) => {
           ...updates,
           shouldUpdateContentStore: true
         }))
-
-        tab.sendMessage({ command: `sendLocation` })
       }
 
       fetch()
@@ -407,9 +303,20 @@ const Provider = ({ children }) => {
         shouldUpdateContentStore: false
       }
 
-      tab.sendMessage({
+      store.tab.sendMessage({
         command: `updateStore`,
-        updates: getStoreForContentScript(store)
+        updates: {
+          state: store.state,
+
+          testGroupIndex: store.testGroupIndex,
+          testIndex: store.testIndex,
+          frameIndex: store.frameIndex,
+
+          allTestGroups: store.allTestGroups,
+          allTests: store.allTests,
+
+          data: store.data
+        }
       })
 
       return store
@@ -647,6 +554,33 @@ const Provider = ({ children }) => {
       }
     })),
 
+    addFrame: frame => store.updateStore(store => {
+      const { state, testGroupIndex, testIndex } = store
+
+      if (state !== RECORDING) {
+        return
+      }
+
+      const data = {}
+      const testGroups = [ ...store.data.testGroups ]
+      const testGroup = { ...testGroups[testGroupIndex] }
+      const tests = [ ...testGroup.tests ]
+      const test = { ...tests[testIndex] }
+      const frames = [ ...test.frames ]
+
+      frames.push(frame)
+      test.frames = frames
+      test.state = UNTESTED
+      tests[testIndex] = test
+      testGroup.state = UNTESTED
+      testGroup.tests = tests
+      testGroups[testGroupIndex] = testGroup
+      data.state = UNTESTED
+      data.testGroups = testGroups
+
+      return { data }
+    }),
+
     updateFrame: ({ testGroupIndex, testIndex, frameIndex, updates }) => store.updateStore(store => ({
       data: {
         testGroups: [
@@ -695,15 +629,63 @@ const Provider = ({ children }) => {
           ...store.data.testGroups.slice(testGroupIndex + 1)
         ]
       }
-    }))
+    })),
+
+    handleBufferedFrameTestResults: bufferedFrameTestResults => {
+      const { data: bufferedData, ...bufferedUpdates } = bufferedFrameTestResults
+      const { testGroups: bufferedTestGroups, ...bufferedDataUpdates } = bufferedData
+
+      store.updateStore(store => {
+        if (store.state !== TESTING) {
+          return
+        }
+
+        const testGroups = [ ...store.data.testGroups ]
+
+        const updates = {
+          ...bufferedUpdates,
+          data: {
+            ...bufferedDataUpdates,
+            testGroups
+          }
+        }
+
+        for (let testGroupIndex in bufferedTestGroups) {
+          const { tests, ...testGroupUpdates } = bufferedTestGroups[testGroupIndex]
+
+          testGroups[testGroupIndex] = {
+            ...testGroups[testGroupIndex],
+            ...testGroupUpdates
+          }
+
+          for (let testIndex in tests) {
+            const { frames, ...testUpdates } = bufferedTestGroups[testGroupIndex].tests[testIndex]
+
+            testGroups[testGroupIndex].tests[testIndex] = {
+              ...testGroups[testGroupIndex].tests[testIndex],
+              ...testUpdates
+            }
+
+            for (let frameIndex in frames) {
+              testGroups[testGroupIndex].tests[testIndex].frames[frameIndex] = {
+                ...testGroups[testGroupIndex].tests[testIndex].frames[frameIndex],
+                ...frames[frameIndex]
+              }
+            }
+          }
+        }
+
+        return updates
+      })
+    }
   })
 
-  if (store.tabRef) {
-    store.tabRef.store = store
-  }
-
   React.useEffect(() => {
-    if (!store.isConfigured) {
+    if (!store.tab) {
+      store.initializeTab()
+    } else if (!store.location) {
+      store.initializeLocation()
+    } else if (!store.isConfigured) {
       store.configure()
     } else if (store.status === ``) {
       if (!store.isInitialized) {

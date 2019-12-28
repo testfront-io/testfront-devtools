@@ -1,18 +1,6 @@
 /* global chrome */
 
 /**
- * Initialize the background connection.
- */
-const backgroundConnection = chrome.runtime.connect({
-  name: `devtools-panel`
-})
-
-backgroundConnection.postMessage({
-  tabId: chrome.devtools.inspectedWindow.tabId,
-  command: `initialize`
-})
-
-/**
  * Create the panel in devtools.
  */
 chrome.devtools.panels.create(

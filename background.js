@@ -6,11 +6,13 @@
 const devToolConnections = {}
 
 chrome.runtime.onConnect.addListener((devToolConnection) => {
+  let tabId = -1
   const listener = (message, sender, sendResponse) => {
     switch (message.command) {
       case `initialize`:
-        devToolConnections[message.tabId] = devToolConnection
-        chrome.tabs.executeScript(message.tabId, { file: `content.js` })
+        tabId = message.tabId
+        devToolConnections[tabId] = devToolConnection
+        chrome.tabs.executeScript(tabId, { file: `content.js` })
         return
 
       default:
@@ -22,12 +24,7 @@ chrome.runtime.onConnect.addListener((devToolConnection) => {
 
   devToolConnection.onDisconnect.addListener((devToolConnection) => {
     devToolConnection.onMessage.removeListener(listener)
-
-    for (let tabId in devToolConnections) {
-      if (devToolConnections[tabId] === devToolConnection) {
-        delete devToolConnections[tabId]
-      }
-    }
+    delete devToolConnections[tabId]
   })
 })
 
@@ -44,4 +41,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   return true
+})
+
+/**
+ * Delete connection when removed or replaced.
+ */
+chrome.tabs.onRemoved.addListener(tabId => {
+  delete devToolConnections[tabId]
+})
+
+chrome.tabs.onReplaced.addListener((newTabId, tabId) => {
+  delete devToolConnections[tabId]
 })
