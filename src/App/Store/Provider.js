@@ -168,8 +168,9 @@ const Provider = ({ children }) => {
       return store
     }),
 
-    configure: async () => {
-      const { source, serverBaseURL } = await local.get([`source`, `serverBaseURL`])
+    configure: async (store) => {
+      const { origin } = store.location
+      const { source, serverBaseURL } = await local.get([`${origin}/source`, `${origin}/serverBaseURL`])
 
       setStore(store => ({
         ...store,
@@ -186,6 +187,7 @@ const Provider = ({ children }) => {
         error: ``
       }
 
+      const { origin } = store.location
       const fetch = async () => {
         const updates = {
           isInitialized: true,
@@ -201,7 +203,7 @@ const Provider = ({ children }) => {
           }
         } else {
           try {
-            updates.data = (await local.get(`data`)) || store.data
+            updates.data = (await local.get(`${origin}/data`)) || store.data
           } catch (error) {
             updates.error = String(error) || `unknown`
           }
@@ -226,6 +228,7 @@ const Provider = ({ children }) => {
         error: ``
       }
 
+      const { origin } = store.location
       const save = async () => {
         const updates = {
           shouldSaveData: false,
@@ -241,7 +244,7 @@ const Provider = ({ children }) => {
           }
         } else {
           try {
-            await local.set({ data: store.data })
+            await local.set({ [`${origin}/data`]: store.data })
           } catch (error) {
             updates.error = String(error) || `unknown`
           }
@@ -265,8 +268,10 @@ const Provider = ({ children }) => {
         return store
       }
 
+      const { origin } = (store.location || updates.location)
+
       if (updates.source && updates.source !== store.source) {
-        local.set({ source: updates.source })
+        local.set({ [`${origin}/source`]: updates.source })
         updates.isInitialized = false
         updates.shouldSaveData = true
         updates.status = ``
@@ -274,7 +279,7 @@ const Provider = ({ children }) => {
       }
 
       if (updates.serverBaseURL && updates.serverBaseURL !== store.serverBaseURL) {
-        local.set({ serverBaseURL: updates.serverBaseURL })
+        local.set({ [`${origin}/serverBaseURL`]: updates.serverBaseURL })
         API.client.defaults.baseURL = store.serverBaseURL
         updates.isInitialized = false
         updates.shouldSaveData = true
@@ -686,7 +691,7 @@ const Provider = ({ children }) => {
     } else if (!store.location) {
       store.initializeLocation()
     } else if (!store.isConfigured) {
-      store.configure()
+      store.configure(store)
     } else if (store.status === ``) {
       if (!store.isInitialized) {
         store.fetchData()

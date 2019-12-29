@@ -17,6 +17,7 @@ let store = {
   state: IDLE,
 
   location: {
+    origin: window.location.origin,
     pathname: window.location.pathname,
     hash: window.location.hash
   },
@@ -79,7 +80,8 @@ const initializeStore = () => {
 
   // We're in the middle of recording or testing.
   const eventType = (
-    savedStore.location.pathname === window.location.pathname
+    savedStore.location.origin === window.location.origin
+    && savedStore.location.pathname === window.location.pathname
     && savedStore.location.hash === window.location.hash
   ) ? `reload`
     : `navigate`
@@ -87,6 +89,7 @@ const initializeStore = () => {
   // We've either reloaded or navigated, so go ahead and set the current location
   // to prevent the pushstate "event" in `setStoreLocation`.
   savedStore.location = {
+    origin: window.location.origin,
     pathname: window.location.pathname,
     hash: window.location.hash
   }
@@ -556,11 +559,13 @@ const locationEventTypes = {
  */
 const setStoreLocation = () => {
   if (
-    store.location.pathname !== window.location.pathname
+    store.location.origin !== window.location.origin
+    || store.location.pathname !== window.location.pathname
     || store.location.hash !== window.location.hash
   ) {
     updateStore({
       location: {
+        origin: window.location.origin,
         pathname: window.location.pathname,
         hash: window.location.hash
       }
@@ -631,6 +636,7 @@ const verifyTestGroupPath = () => {
 const addLocationFrame = ({
   eventType,
   location = {
+    origin: window.location.origin,
     pathname: window.location.pathname,
     hash: window.location.hash
   }
@@ -678,6 +684,7 @@ const compareLocationFrame = ({ eventType }) => {
         state: FAILED,
         error: {
           location: {
+            origin: window.location.origin,
             pathname: window.location.pathname,
             hash: window.location.hash
           }
@@ -696,7 +703,8 @@ const confirmLocationEvent = ({ eventType, location }) => {
   }
 
   return Boolean(
-    location.pathname === window.location.pathname
+    location.origin === window.location.origin
+    && location.pathname === window.location.pathname
     && location.hash === window.location.hash
   )
 }
