@@ -277,7 +277,13 @@ const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
     position: relative;
 
     > ${UI.Input} {
-      width: 50%;
+      width: calc(50% - 2.5px);
+      margin-right: 2.5px;
+
+      ~ ${UI.Input} {
+        margin-left: 2.5px;
+        margin-right: 0;
+      }
 
       > input {
         font-size: 20px;

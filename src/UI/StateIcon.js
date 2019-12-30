@@ -50,48 +50,48 @@ const StateIcon = styled(withTheme(({
 
   switch (state) {
     case RECORDING:
-      return (
-        <span title={title} style={{ color: theme.colors.red || `red`, ...style }} dangerouslySetInnerHTML={{
-          __html: octicons[`primitive-dot`].toSVG({ width, height })
-        }} { ...props } />
-      )
+    return (
+      <span title={title} style={{ color: theme.colors.red || `red`, ...style }} dangerouslySetInnerHTML={{
+        __html: octicons[`primitive-dot`].toSVG({ width, height })
+      }} { ...props } />
+    )
 
     case TESTING:
-      return (
-        <Rotate title={title} style={{ color: theme.colors.yellow || `yellow`, ...style }} dangerouslySetInnerHTML={{
-          __html: octicons[`sync`].toSVG({ width, height })
-        }} { ...props } />
-      )
+    return (
+      <Rotate title={title} style={{ color: theme.colors.yellow || `yellow`, ...style }} dangerouslySetInnerHTML={{
+        __html: octicons[`sync`].toSVG({ width, height })
+      }} { ...props } />
+    )
 
     case UNTESTED:
-      return (
-        <span title={title} style={style} dangerouslySetInnerHTML={{
-          __html: octicons[`question`].toSVG({ width, height })
-        }} { ...props } />
-      )
+    return (
+      <span title={title} style={style} dangerouslySetInnerHTML={{
+        __html: octicons[`question`].toSVG({ width, height })
+      }} { ...props } />
+    )
 
     case PASSED:
-      return (
-        <span title={title} style={{ color: theme.colors.green || `green`, ...style }} dangerouslySetInnerHTML={{
-          __html: octicons[`check`].toSVG({ width, height })
-        }} { ...props } />
-      )
+    return (
+      <span title={title} style={{ color: theme.colors.green || `green`, ...style }} dangerouslySetInnerHTML={{
+        __html: octicons[`check`].toSVG({ width, height })
+      }} { ...props } />
+    )
 
     case FAILED:
-      return (
-        <span title={title} style={{ color: theme.colors.red || `red`, ...style }} dangerouslySetInnerHTML={{
-          __html: octicons[`x`].toSVG({ width, height })
-        }} { ...props } />
-      )
+    return (
+      <span title={title} style={{ color: theme.colors.red || `red`, ...style }} dangerouslySetInnerHTML={{
+        __html: octicons[`x`].toSVG({ width, height })
+      }} { ...props } />
+    )
 
     default:
-      return octicons[iconKey] ? (
-        <span title={title} style={style} dangerouslySetInnerHTML={{
-          __html: octicons[iconKey].toSVG({ width, height })
-        }} { ...props } />
-      ) : (
-        <span title={title} style={style} { ...props } />
-      )
+    return octicons[iconKey] ? (
+      <span title={title} style={style} dangerouslySetInnerHTML={{
+        __html: octicons[iconKey].toSVG({ width, height })
+      }} { ...props } />
+    ) : (
+      <span title={title} style={style} { ...props } />
+    )
   }
 }))`
   display: inline-block;

@@ -13,10 +13,11 @@ chrome.runtime.onConnect.addListener((devToolConnection) => {
         tabId = message.tabId
         devToolConnections[tabId] = devToolConnection
         chrome.tabs.executeScript(tabId, { file: `content.js` })
-        return
+      return
 
       default:
-        return console.warn(`Unrecognized command:`, message)
+        console.warn(`Unrecognized command:`, message)
+      return
     }
   }
 

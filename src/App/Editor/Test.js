@@ -4,6 +4,7 @@ import { mix } from 'polished'
 import octicons from 'octicons'
 import * as UI from '../../UI'
 import EventSelection from './EventSelection'
+import SnapshotFilter from './SnapshotFilter'
 import Frame from './Frame'
 import actionableEventTypes from './actionableEventTypes'
 
@@ -104,7 +105,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
         </UI.Input>
 
         <UI.Input
-          placeholder='Snapshot Container Selector'
+          placeholder='Snapshot Selector'
           value={test.snapshotSelector || `html`}
           onKeyUp={event => {
             if (event.key === `Enter` || event.key === `Escape`) {
@@ -138,7 +139,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
 
       {store.state === IDLE && test.frames.length === 0 && (
         <section>
-          <header>Events to Record</header>
+          <header>{test.eventTypes.length} Event{test.eventTypes.length === 1 ? `` : `s`} to Record</header>
 
           {actionableEventTypes.map((eventTypesGroup, eventTypesGroupIndex) => (
             <EventSelection
@@ -162,6 +163,29 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
               Show More...
             </div>
           )}
+        </section>
+      )}
+
+      {store.state === IDLE && test.frames.length === 0 && (
+        <section>
+          <header>{test.snapshotFilters.length} Snapshot Filter{test.snapshotFilters.length === 1 ? `` : `s`}</header>
+
+          {test.snapshotFilters.map((snapshotFilter, snapshotFilterIndex) => (
+            <SnapshotFilter
+              key={`SnapshotFilter_${testGroupIndex}_${testIndex}_${snapshotFilterIndex}`}
+              store={store}
+              testGroupIndex={testGroupIndex}
+              testIndex={testIndex}
+              snapshotFilterIndex={snapshotFilterIndex}
+              snapshotFilter={snapshotFilter}
+            />
+          ))}
+
+          <center>
+            <UI.Button onClick={() => store.addSnapshotFilter({ testGroupIndex, testIndex })}>
+              <span>Add Filter</span>
+            </UI.Button>
+          </center>
         </section>
       )}
 
@@ -285,6 +309,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
   )
 })`
   position: relative;
+  background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(63, 63, 63, 1)`)};
   box-shadow: 0 -3px 6px 6px rgba(0, 0, 0, 0.05);
   opacity: ${({ store, testGroupIndex, testIndex, test }) => (test.skip || (store.state === RECORDING && (store.testGroupIndex !== testGroupIndex || store.testIndex !== testIndex))) ? 0.25 : 1 };
   transition: opacity 0.25s ease-in-out;
@@ -296,9 +321,16 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
 
   > div {
     position: relative;
+    background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(47, 47, 47, 1)`)};
 
     > ${UI.Input} {
-      width: 50%;
+      width: calc(50% - 2.5px);
+      margin-right: 2.5px;
+
+      ~ ${UI.Input} {
+        margin-left: 2.5px;
+        margin-right: 0;
+      }
 
       > aside {
         position: absolute;
@@ -375,29 +407,57 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
   }
 
   > section {
+    display: inline-block;
+    vertical-align: top;
+    width: calc(50% - 2.5px);
     padding: 10px 0;
-    background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(63, 63, 63, 1)`)};
+    margin-right: 2.5px;
+
+    ~ section {
+      margin-left: 2.5px;
+      margin-right: 0;
+    }
 
     > header {
       padding: 3px;
+      margin-bottom: 5px;
       font-size: 11px;
       line-height: 1;
       color: gray;
       text-transform: uppercase;
       pointer-events: none;
+      transition: color 0.25s ease-in-out;
+    }
+
+    &:hover {
+      > header {
+        color: inherit;
+      }
     }
 
     > div {
-      padding: 6px 0 6px 37px;
-      font-size: 13px;
-      line-height: 1;
-      color: gray;
-      cursor: pointer;
+      &:last-child {
+        padding: 6px 0 6px 37px;
+        font-size: 13px;
+        line-height: 1;
+        color: gray;
+        cursor: pointer;
 
-      &:hover {
-        background: rgba(0, 0, 0, 0.25);
-        color: inherit;
-        text-decoration: underline;
+        &:hover {
+          background: rgba(0, 0, 0, 0.25);
+          color: inherit;
+          text-decoration: underline;
+        }
+      }
+    }
+
+    > center {
+      margin-top: 10px;
+
+      > ${UI.Button} {
+        height: 25px;
+        font-size: 15px;
+        line-height: 1;
       }
     }
   }

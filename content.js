@@ -618,15 +618,15 @@ const verifyTestGroupPath = () => {
     case `load`:
       store.pendingTestGroupPath = true
       window.location.href = testGroup.path
-      break
+    break
 
     case `push`:
       store.pendingTestGroupPath = true
       window.history.pushState({}, ``, testGroup.path)
-      break
+    break
 
     default:
-      break
+    break
   }
 }
 
@@ -710,6 +710,87 @@ const confirmLocationEvent = ({ eventType, location }) => {
 }
 
 /**
+ * Returns the current snapshot's html.
+ */
+const getSnapshotHtml = () => {
+  const { testGroupIndex, testIndex } = store
+  const { testGroups } = store.data
+  const testGroup = testGroups[testGroupIndex]
+  const tests = testGroup && testGroup.tests
+  const test = tests && tests[testIndex]
+  const snapshotSelector = test && test.snapshotSelector
+  const snapshotContainer = snapshotSelector && document.querySelector(snapshotSelector)
+
+  return snapshotContainer && applySnapshotFilters(snapshotContainer.innerHTML)
+}
+
+/**
+ * Applies the current test's filters to the provided `html`.
+ */
+const applySnapshotFilters = html => {
+  const { testGroupIndex, testIndex } = store
+  const { testGroups } = store.data
+  const testGroup = testGroups[testGroupIndex]
+  const tests = testGroup && testGroup.tests
+  const test = tests && tests[testIndex]
+  const snapshotFilters = test && test.snapshotFilters
+
+  if (!html || !snapshotFilters || !snapshotFilters.length) {
+    return html
+  }
+
+  for (let { type, values } of snapshotFilters) {
+    if (filterSnapshotHtml[type]) {
+      html = filterSnapshotHtml[type]({ html, values })
+    }
+  }
+
+  return html
+}
+
+/**
+ * Filters snapshot html based on the `type`.
+ * @param {string} html
+ * @param {object} values
+ * @returns {string}
+ */
+const filterSnapshotHtml = {
+  removeElements: ({ html, values }) => {
+    if (!values.elementsSelector) {
+      return html
+    }
+
+    const container = document.createElement(`div`)
+    container.innerHTML = html
+    const elements = [ ...container.querySelectorAll(values.elementsSelector) ]
+    let element = null
+
+    while (elements.length) {
+      element = elements.pop()
+      element.parentNode.removeChild(element)
+    }
+
+    return container.innerHTML
+  },
+
+  removeAttribute: ({ html, values }) => {
+    if (!values.elementsSelector || !values.attribute) {
+      return html
+    }
+
+    const container = document.createElement(`div`)
+    container.innerHTML = html
+    const elements = [ ...container.querySelectorAll(values.elementsSelector) ]
+
+    for (let element of elements) {
+      element.removeAttribute(values.attribute)
+    }
+
+    return container.innerHTML
+  }
+}
+
+/**
  * When recording, adds the snapshot html to the current test.
  */
 const addCurrentSnapshotHtml = () => {
@@ -717,19 +798,7 @@ const addCurrentSnapshotHtml = () => {
     return
   }
 
-  const { testGroupIndex, testIndex } = store
-  const { testGroups } = store.data
-  const testGroup = testGroups[testGroupIndex]
-  const tests = testGroup && testGroup.tests
-  const test = tests && tests[testIndex]
-  const snapshotSelector = test && test.snapshotSelector
-
-  if (!snapshotSelector) {
-    return
-  }
-
-  const snapshotContainer = document.querySelector(snapshotSelector)
-  const html = snapshotContainer && snapshotContainer.innerHTML
+  const html = getSnapshotHtml()
 
   if (typeof html === `string`) {
     addFrame({ html })
@@ -749,29 +818,22 @@ const compareCurrentSnapshotHtml = () => {
   const testGroup = testGroups[testGroupIndex]
   const tests = testGroup && testGroup.tests
   const test = tests && tests[testIndex]
-
-  if (!test) {
-    return
-  }
-
-  const { snapshotSelector, frames } = test
+  const frames = test && test.frames
   const frame = frames && frames[frameIndex]
+  const snapshotSelector = test && test.snapshotSelector
 
   if (!snapshotSelector || !frame || typeof frame.html === `undefined`) {
     return
   }
 
-  const snapshotContainer = document.querySelector(snapshotSelector)
-  const html = snapshotContainer && snapshotContainer.innerHTML
+  const html = getSnapshotHtml()
 
-  if (html === frame.html) {
+  if (html === applySnapshotFilters(frame.html)) {
     clearTimeouts([`snapshot`])
     handleFrameTestResult({ state: PASSED })
   } else if (timeouts.snapshot < 0) {
     timeouts.snapshot = setTimeout(() => {
-      const snapshotContainer = document.querySelector(snapshotSelector)
-      const html = snapshotContainer && snapshotContainer.innerHTML
-
+      const html = getSnapshotHtml()
       timeouts.snapshot = -1
       handleFrameTestResult({ state: FAILED, error: { html } })
     }, store.data.timeLimits.snapshot)
@@ -1206,16 +1268,16 @@ window.addEventListener(`unload`, () => {
 const handleDevToolsMessage = (message) => {
   switch (message.command) {
     case `updateStore`:
-      return updateStore(message.updates)
+    return updateStore(message.updates)
 
     case `sendLocation`:
-      return sendLocation()
+    return sendLocation()
 
     case `consoleLog`:
-      return console.log(`handleDevToolsMessage:`, message)
+    return console.log(`handleDevToolsMessage:`, message)
 
     default:
-      return console.warn(`Unrecognized command:`, message)
+    return console.warn(`Unrecognized command:`, message)
   }
 }
 

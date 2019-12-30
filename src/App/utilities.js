@@ -32,18 +32,18 @@ const getPrettyHtml = (diffs) => {
     switch (op) {
       case DIFF_INSERT:
         html[x] = `<ins>${text}</ins>`
-        break
+      break
 
       case DIFF_DELETE:
         html[x] = `<del>${text}</del>`
-        break
+      break
 
       case DIFF_EQUAL:
         html[x] = `<span>${text}</span>`
-        break
+      break
 
       default:
-        break
+      break
     }
   }
   return html.join(``)

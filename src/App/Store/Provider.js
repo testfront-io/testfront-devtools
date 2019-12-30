@@ -71,6 +71,10 @@ const Provider = ({ children }) => {
           state: UNTESTED,
           description: ``,
           snapshotSelector: ``,
+          snapshotFilters: [{
+            type: ``,
+            values: {}
+          }],
           eventTypes: [],
           frames: [typeof frame.html !== `undefined` ? {
             state: UNTESTED,
@@ -135,25 +139,27 @@ const Provider = ({ children }) => {
               ...(message.updates || {}),
               shouldUpdateContentStore: true
             }))
-            break
+          break
 
           case `updateStore`:
             store.updateStore(store => message.updates)
-            break
+          break
 
           case `addFrame`:
             store.addFrame(message.frame)
-            break
+          break
 
           case `handleBufferedFrameTestResults`:
             store.handleBufferedFrameTestResults(message.bufferedFrameTestResults)
-            break
+          break
 
           case `consoleLog`:
-            return console.log(message)
+            console.log(message)
+          break
 
           default:
-            return console.warn(`Unrecognized command:`, message)
+            console.warn(`Unrecognized command:`, message)
+          break
         }
       })
 
@@ -502,6 +508,7 @@ const Provider = ({ children }) => {
                   state: UNTESTED,
                   description: ``,
                   snapshotSelector: (lastTest && lastTest.snapshotSelector) || `html`,
+                  snapshotFilters: [].concat((lastTest && lastTest.snapshotFilters) || []),
                   eventTypes: (lastTest && lastTest.eventTypes) || [
                     `reload`,
                     `navigate`,
@@ -626,6 +633,83 @@ const Provider = ({ children }) => {
                 frames: [
                   ...store.data.testGroups[testGroupIndex].tests[testIndex].frames.slice(0, frameIndex),
                   ...store.data.testGroups[testGroupIndex].tests[testIndex].frames.slice(frameIndex + 1)
+                ]
+              },
+              ...store.data.testGroups[testGroupIndex].tests.slice(testIndex + 1)
+            ]
+          },
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    addSnapshotFilter: ({ testGroupIndex, testIndex, snapshotFilter = {} }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          {
+            ...store.data.testGroups[testGroupIndex],
+            tests: [
+              ...store.data.testGroups[testGroupIndex].tests.slice(0, testIndex),
+              {
+                ...store.data.testGroups[testGroupIndex].tests[testIndex],
+                snapshotFilters: [
+                  ...store.data.testGroups[testGroupIndex].tests[testIndex].snapshotFilters,
+                  {
+                    type: ``,
+                    values: {},
+                    ...snapshotFilter
+                  }
+                ]
+              },
+              ...store.data.testGroups[testGroupIndex].tests.slice(testIndex + 1)
+            ]
+          },
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    updateSnapshotFilter: ({ testGroupIndex, testIndex, snapshotFilterIndex, updates }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          {
+            ...store.data.testGroups[testGroupIndex],
+            tests: [
+              ...store.data.testGroups[testGroupIndex].tests.slice(0, testIndex),
+              {
+                ...store.data.testGroups[testGroupIndex].tests[testIndex],
+                snapshotFilters: [
+                  ...store.data.testGroups[testGroupIndex].tests[testIndex].snapshotFilters.slice(0, snapshotFilterIndex),
+                  {
+                    ...store.data.testGroups[testGroupIndex].tests[testIndex].snapshotFilters[snapshotFilterIndex],
+                    ...updates
+                  },
+                  ...store.data.testGroups[testGroupIndex].tests[testIndex].snapshotFilters.slice(snapshotFilterIndex + 1)
+                ]
+              },
+              ...store.data.testGroups[testGroupIndex].tests.slice(testIndex + 1)
+            ]
+          },
+          ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    deleteSnapshotFilter: ({ testGroupIndex, testIndex, snapshotFilterIndex }) => store.updateStore(store => ({
+      data: {
+        testGroups: [
+          ...store.data.testGroups.slice(0, testGroupIndex),
+          {
+            ...store.data.testGroups[testGroupIndex],
+            tests: [
+              ...store.data.testGroups[testGroupIndex].tests.slice(0, testIndex),
+              {
+                ...store.data.testGroups[testGroupIndex].tests[testIndex],
+                snapshotFilters: [
+                  ...store.data.testGroups[testGroupIndex].tests[testIndex].snapshotFilters.slice(0, snapshotFilterIndex),
+                  ...store.data.testGroups[testGroupIndex].tests[testIndex].snapshotFilters.slice(snapshotFilterIndex + 1)
                 ]
               },
               ...store.data.testGroups[testGroupIndex].tests.slice(testIndex + 1)

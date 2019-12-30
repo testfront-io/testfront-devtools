@@ -13,35 +13,30 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
   const [ editing, setEditing ] = React.useState(``)
   const [ isDeleting, setIsDeleting ] = React.useState(false)
 
-  const deleteButton = (
-    <UI.Button backgroundColor='red' onClick={() => {
-      setEditing(``)
-      setIsDeleting(true)
-    }}>
-      <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
-    </UI.Button>
-  )
+  if (isDeleting) {
+    return (
+      <div { ...props }>
+        {store.state === IDLE && (
+          <aside style={{ opacity: 1 }}>
+            <div>{`Delete ${typeof frame.html !== `undefined` ? `snapshot` : `event`} from sequence?`}</div>
 
-  const deleteConfirmation = (
-    <aside style={{ opacity: 1 }}>
-      <div>{`Delete ${typeof frame.html !== `undefined` ? `snapshot` : `event`} from sequence?`}</div>
+            <UI.Button backgroundColor='gray' onClick={() => setIsDeleting(false)}>
+              <span dangerouslySetInnerHTML={{ __html: octicons[`chevron-left`].toSVG({ width: 15, height: 15 }) }} />
+              <span>Cancel</span>
+            </UI.Button>
 
-      <UI.Button backgroundColor='gray' onClick={() => {
-        setIsDeleting(false)
-      }}>
-        <span dangerouslySetInnerHTML={{ __html: octicons[`chevron-left`].toSVG({ width: 15, height: 15 }) }} />
-        <span>Cancel</span>
-      </UI.Button>
-
-      <UI.Button backgroundColor='red' onClick={() => {
-        setIsDeleting(false)
-        store.deleteFrame({ testGroupIndex, testIndex, frameIndex })
-      }}>
-        <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
-        <span>Delete</span>
-      </UI.Button>
-    </aside>
-  )
+            <UI.Button backgroundColor='red' onClick={() => {
+              setIsDeleting(false)
+              store.deleteFrame({ testGroupIndex, testIndex, frameIndex })
+            }}>
+              <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
+              <span>Delete</span>
+            </UI.Button>
+          </aside>
+        )}
+      </div>
+    )
+  }
 
   const locationEventTypeToText = {
     reload: `Reloaded`,
@@ -50,6 +45,15 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
     pushstate: `Pushed history state to`,
     popstate: `Popped history state to`
   }
+
+  const deleteButton = (
+    <UI.Button backgroundColor='red' onClick={() => {
+      setEditing(``)
+      setIsDeleting(true)
+    }}>
+      <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
+    </UI.Button>
+  )
 
   if (typeof frame.html !== `undefined`) {
     return (
@@ -81,11 +85,11 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
           </div>
         )}
 
-        {store.state === IDLE && (isDeleting ? deleteConfirmation : (
+        {store.state === IDLE && (
           <aside>
             {deleteButton}
           </aside>
-        ))}
+        )}
       </div>
     )
   }
@@ -108,11 +112,11 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
 
         <span>{locationEventTypeToText[frame.eventType]} <pre>{frame.location.pathname + frame.location.hash}</pre></span>
 
-        {store.state === IDLE && (isDeleting ? deleteConfirmation : (
+        {store.state === IDLE && (
           <aside>
             {deleteButton}
           </aside>
-        ))}
+        )}
       </div>
     )
   }
@@ -248,7 +252,7 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
         </React.Fragment>
       )}
 
-      {store.state === IDLE && (isDeleting ? deleteConfirmation : (
+      {store.state === IDLE && (
         <aside>
           {editing ? (
             <UI.Button backgroundColor='green' onClick={() => setEditing(``)}>
@@ -262,7 +266,7 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
 
           {deleteButton}
         </aside>
-      ))}
+      )}
     </div>
   )
 })`
@@ -348,13 +352,12 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
     position: absolute;
     top: 5px;
     right: 0;
-    background: inherit;
     opacity: 0;
     transition: opacity 0.25s ease-in-out;
 
     > div {
       display: inline-block;
-      vertical-align: middle;
+      vertical-align: top;
       padding-left: 5px;
     }
 
