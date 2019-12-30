@@ -98,8 +98,7 @@ const Provider = ({ children }) => {
       }*/],
 
       timeLimits: {
-        snapshot: 10000,
-        event: 10000
+        test: 10000
       },
 
       delays: {

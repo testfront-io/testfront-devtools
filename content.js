@@ -35,8 +35,7 @@ let store = {
     testGroups: [],
 
     timeLimits: {
-      snapshot: 10000,
-      event: 10000
+      test: 10000
     },
 
     delays: {
@@ -127,12 +126,13 @@ const updateStore = (updates, eventType) => {
   } else if (stopRecording) {
     setEventListeners([])
   } else if (startTesting) {
+    setTestTimeouts()
     verifyTestGroupPath()
     compareLocationFrame({ eventType })
     compareCurrentSnapshotHtml()
     simulateCurrentFrameEvent()
   } else if (stopTesting) {
-    clearTimeouts()
+    clearTimeouts(`test`)
   }
 
   if (updates.location) {
@@ -256,20 +256,88 @@ const getSimplestElementSelector = (element, attributes = [`name`, `placeholder`
  * Keep track of timeouts.
  */
 const timeouts = {
-  snapshot: -1,
-  event: -1
+  test: -1
+}
+
+/**
+ * Clears and sets the timeouts.
+ * Uses the `store.data.timeLimits` and defaults to 10 seconds if undefined.
+ * @param {object} object - timeout keys to functions
+ */
+const setTimeouts = object => {
+  clearTimeouts(object)
+
+  for (let key in object) {
+    timeouts[key] = setTimeout(
+      object[key],
+      typeof store.data.timeLimits[key] !== `undefined` ? store.data.timeLimits[key] : 10000
+    )
+  }
 }
 
 /**
  * Clears the provided timeout `keys` and resets to -1.
- * @param {array} keys
+ * @param {array|object|string} keys
  */
 const clearTimeouts = (keys = Object.keys(timeouts)) => {
+  if (typeof keys === `object` && !Array.isArray(keys)) {
+    keys = Object.keys(keys)
+  } else if (typeof keys === `string`) {
+    keys = [ keys ]
+  }
+
   for (let key of keys) {
     clearTimeout(timeouts[key])
     timeouts[key] = -1
   }
 }
+
+/**
+ * Sets the timeouts specific to tests.
+ */
+const setTestTimeouts = () => setTimeouts({
+  test: () => {
+    const { testGroupIndex, testIndex, frameIndex } = store
+    const { testGroups } = store.data
+    const testGroup = testGroups[testGroupIndex]
+    const tests = testGroup && testGroup.tests
+    const test = tests && tests[testIndex]
+    const frames = test && test.frames
+    const frame = frames && frames[frameIndex]
+
+    if (!frame) {
+      return
+    }
+
+    if (typeof frame.html !== `undefined`) {
+      handleFrameTestResult({
+        state: FAILED,
+        error: {
+          filteredHtml: applySnapshotFilters(getSnapshotHtml()),
+          filteredFrameHtml: applySnapshotFilters(frame.html)
+        }
+      })
+    } else if (locationEventTypes[frame.eventType]) {
+      handleFrameTestResult({
+        state: FAILED,
+        error: {
+          location: {
+            origin: window.location.origin,
+            pathname: window.location.pathname,
+            hash: window.location.hash
+          }
+        }
+      })
+    } else if (frame.eventType) {
+      handleFrameTestResult({
+        state: FAILED,
+        error: {
+          message: `Target not found.`
+        }
+      })
+    }
+  }
+})
 
 /**
  * Keep track of event listeners.
@@ -406,36 +474,15 @@ const simulateCurrentFrameEvent = () => {
   }
 
   const { testGroupIndex, testIndex, frameIndex } = store
-  const { testGroups, timeLimits } = store.data
+  const { testGroups } = store.data
   const testGroup = testGroups[testGroupIndex]
   const tests = testGroup && testGroup.tests
   const test = tests && tests[testIndex]
   const frames = test && test.frames
   const frame = frames && frames[frameIndex]
 
-  if (!frame || !frame.eventType) {
-    return
-  }
-
-  if (simulateEvent(frame)) {
-    clearTimeouts([`event`])
+  if (frame && frame.eventType && simulateEvent(frame)) {
     handleFrameTestResult({ state: PASSED })
-  } else if (timeouts.event < 0) {
-    timeouts.event = setTimeout(() => {
-      timeouts.event = -1
-
-      handleFrameTestResult({
-        state: FAILED,
-        error: !locationEventTypes[frame.eventType] ? {  // TODO find a better place to timeout the location "events"
-          message: `Target not found.`
-        } : {
-          location: {
-            pathname: window.location.pathname,
-            hash: window.location.hash
-          }
-        }
-      })
-    }, timeLimits.event)
   }
 }
 
@@ -661,37 +708,18 @@ const compareLocationFrame = ({ eventType }) => {
   const testGroup = testGroups[testGroupIndex]
   const tests = testGroup && testGroup.tests
   const test = tests && tests[testIndex]
-
-  if (!test) {
-    return
-  }
-
-  const { frames } = test
+  const frames = test && test.frames
   const frame = frames && frames[frameIndex]
 
-  if (!frame || !frame.eventType || frame.eventType !== eventType || !locationEventTypes[eventType]) {
-    return
-  }
-
-  if (confirmLocationEvent(frame)) {
-    clearTimeouts([`event`]) // TODO use separate time limit for location confirmations?
+  if (
+    frame
+    && frame.eventType
+    && frame.eventType === eventType
+    && locationEventTypes[eventType]
+    && confirmLocationEvent(frame)
+  ) {
     handleFrameTestResult({ state: PASSED })
-  }/* else if (timeouts.event < 0) {
-    timeouts.event = setTimeout(() => {
-      timeouts.event = -1
-
-      handleFrameTestResult({
-        state: FAILED,
-        error: {
-          location: {
-            origin: window.location.origin,
-            pathname: window.location.pathname,
-            hash: window.location.hash
-          }
-        }
-      })
-    }, store.data.timeLimits.event)
-  }*/
+  }
 }
 
 /**
@@ -822,22 +850,13 @@ const compareCurrentSnapshotHtml = () => {
   const frame = frames && frames[frameIndex]
   const snapshotSelector = test && test.snapshotSelector
 
-  if (!snapshotSelector || !frame || typeof frame.html === `undefined`) {
-    return
-  }
-
-  const html = getSnapshotHtml()
-
-  if (applySnapshotFilters(html) === applySnapshotFilters(frame.html)) {
-    clearTimeouts([`snapshot`])
+  if (
+    snapshotSelector
+    && frame
+    && typeof frame.html !== `undefined`
+    && applySnapshotFilters(getSnapshotHtml()) === applySnapshotFilters(frame.html)
+  ) {
     handleFrameTestResult({ state: PASSED })
-  } else if (timeouts.snapshot < 0) {
-    timeouts.snapshot = setTimeout(() => {
-      const filteredHtml = applySnapshotFilters(getSnapshotHtml())
-      const filteredFrameHtml = applySnapshotFilters(frame.html)
-      timeouts.snapshot = -1
-      handleFrameTestResult({ state: FAILED, error: { filteredHtml, filteredFrameHtml } })
-    }, store.data.timeLimits.snapshot)
   }
 }
 
@@ -999,6 +1018,8 @@ const handleFrameTestResult = updates => {
     frameIndex,
     data
   })
+
+  setTestTimeouts()
 }
 
 /**

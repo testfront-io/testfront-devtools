@@ -2,54 +2,32 @@ import React from 'react'
 import styled from 'styled-components'
 import * as UI from '../../UI'
 
-const Editor = styled(({ store, onSubmit, ...props }) => {
-  const [ submitText, setSubmitText ] = React.useState(``)
+const Editor = styled(({ store, onSubmit, ...props }) => (
+  <UI.Form { ...props }>
+    <section>
+      <UI.Input
+        type='number'
+        name='timeLimits.test'
+        placeholder='Test Time Limit (ms)'
+        value={store.data.timeLimits.test}
+        onBlur={event => {
+          const test = Number(event.target.value)
 
-  return (
-    <UI.Form { ...props } onSubmit={(event, data) => {
-      if (submitText) {
-        return
-      }
-
-      setSubmitText(`Saving...`)
-
-      store.updateStore(store => {
-        setSubmitText(`Saved!`)
-        setTimeout(() => setSubmitText(``), 3000)
-
-        return {
-          data
-        }
-      })
-
-      if (onSubmit) {
-        onSubmit(event, data)
-      }
-    }}>
-      <section>
-        <UI.Input
-          type='number'
-          name='timeLimits.snapshot'
-          placeholder='Snapshot Time Limit (ms)'
-          value={store.data.timeLimits.snapshot}
-        />
-
-        <UI.Input
-          type='number'
-          name='timeLimits.event'
-          placeholder='Event Time Limit (ms)'
-          value={store.data.timeLimits.event}
-        />
-      </section>
-
-      <section>
-        <UI.Button type='submit' backgroundColor='green'>
-          <span>{submitText || `Save`}</span>
-        </UI.Button>
-      </section>
-    </UI.Form>
-  )
-})`
+          if (test !== store.data.timeLimits.test) {
+            store.updateStore(store => ({
+              data: {
+                timeLimits: {
+                  ...store.data.timeLimits,
+                  test
+                }
+              }
+            }))
+          }
+        }}
+      />
+    </section>
+  </UI.Form>
+))`
   width: 300px;
   max-width: 100%;
   padding: 35px 10px 20px;
