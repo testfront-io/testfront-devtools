@@ -710,7 +710,7 @@ const confirmLocationEvent = ({ eventType, location }) => {
 }
 
 /**
- * Returns the current snapshot's html.
+ * Returns the current snapshot's html, unfiltered.
  */
 const getSnapshotHtml = () => {
   const { testGroupIndex, testIndex } = store
@@ -721,7 +721,7 @@ const getSnapshotHtml = () => {
   const snapshotSelector = test && test.snapshotSelector
   const snapshotContainer = snapshotSelector && document.querySelector(snapshotSelector)
 
-  return snapshotContainer && applySnapshotFilters(snapshotContainer.innerHTML)
+  return snapshotContainer && snapshotContainer.innerHTML
 }
 
 /**
@@ -791,7 +791,7 @@ const filterSnapshotHtml = {
 }
 
 /**
- * When recording, adds the snapshot html to the current test.
+ * When recording, adds the snapshot html (unfiltered) to the current test.
  */
 const addCurrentSnapshotHtml = () => {
   if (store.state !== RECORDING) {
@@ -828,14 +828,15 @@ const compareCurrentSnapshotHtml = () => {
 
   const html = getSnapshotHtml()
 
-  if (html === applySnapshotFilters(frame.html)) {
+  if (applySnapshotFilters(html) === applySnapshotFilters(frame.html)) {
     clearTimeouts([`snapshot`])
     handleFrameTestResult({ state: PASSED })
   } else if (timeouts.snapshot < 0) {
     timeouts.snapshot = setTimeout(() => {
-      const html = getSnapshotHtml()
+      const filteredHtml = applySnapshotFilters(getSnapshotHtml())
+      const filteredFrameHtml = applySnapshotFilters(frame.html)
       timeouts.snapshot = -1
-      handleFrameTestResult({ state: FAILED, error: { html } })
+      handleFrameTestResult({ state: FAILED, error: { filteredHtml, filteredFrameHtml } })
     }, store.data.timeLimits.snapshot)
   }
 }

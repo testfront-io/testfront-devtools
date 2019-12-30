@@ -29,7 +29,18 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
   const [ showingMore, setShowingMore ] = React.useState(false)
   const [ isDeleting, setIsDeleting ] = React.useState(false)
   const [ isErasing, setIsErasing ] = React.useState(false)
-  const [ isOpen, setIsOpen ] = React.useState(false)
+
+  const [ detailsOpen, setDetailsOpen ] = React.useState({
+    eventSelection: !test.frames.length,
+    snapshotFilters: !test.frames.length,
+    footer: false
+  })
+
+  const updateDetailsOpen = updates => setDetailsOpen({
+    ...detailsOpen,
+    ...updates
+  })
+
 
   let snapshotCount = 0
   let eventCount = 0
@@ -137,57 +148,59 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
         )}
       </div>
 
-      {store.state === IDLE && test.frames.length === 0 && (
-        <section>
-          <header>{test.eventTypes.length} Event{test.eventTypes.length === 1 ? `` : `s`} to Record</header>
+      <details open={store.state === IDLE && detailsOpen.eventSelection} onToggle={event => {
+        updateDetailsOpen({ eventSelection: event.target.open })
+        event.stopPropagation()
+      }}>
+        <summary>{test.eventTypes.length} Event{test.eventTypes.length === 1 ? `` : `s`} to Record</summary>
 
-          {actionableEventTypes.map((eventTypesGroup, eventTypesGroupIndex) => (
-            <EventSelection
-              key={`EventSelection_${testGroupIndex}_${testIndex}_${eventTypesGroupIndex}`}
-              style={(showingMore || (!test.eventTypes.length && eventTypesGroupIndex < 3) || hasOneSelected({ eventTypesGroup, test })) ? undefined : { display: `none` }}
-              store={store}
-              testGroupIndex={testGroupIndex}
-              testIndex={testIndex}
-              eventTypes={test.eventTypes}
-              eventTypesGroup={eventTypesGroup}
-              eventTypesGroupIndex={eventTypesGroupIndex}
-            />
-          ))}
+        {actionableEventTypes.map((eventTypesGroup, eventTypesGroupIndex) => (
+          <EventSelection
+            key={`EventSelection_${testGroupIndex}_${testIndex}_${eventTypesGroupIndex}`}
+            style={(showingMore || (!test.eventTypes.length && eventTypesGroupIndex < 3) || hasOneSelected({ eventTypesGroup, test })) ? undefined : { display: `none` }}
+            store={store}
+            testGroupIndex={testGroupIndex}
+            testIndex={testIndex}
+            eventTypes={test.eventTypes}
+            eventTypesGroup={eventTypesGroup}
+            eventTypesGroupIndex={eventTypesGroupIndex}
+          />
+        ))}
 
-          {showingMore ? (
-            <div onClick={() => setShowingMore(false)}>
-              Show Less...
-            </div>
-          ) : (
-            <div onClick={() => setShowingMore(true)}>
-              Show More...
-            </div>
-          )}
-        </section>
-      )}
+        {showingMore ? (
+          <div onClick={() => setShowingMore(false)}>
+            Show Less...
+          </div>
+        ) : (
+          <div onClick={() => setShowingMore(true)}>
+            Show More...
+          </div>
+        )}
+      </details>
 
-      {store.state === IDLE && test.frames.length === 0 && (
-        <section>
-          <header>{test.snapshotFilters.length} Snapshot Filter{test.snapshotFilters.length === 1 ? `` : `s`}</header>
+      <details open={store.state === IDLE && detailsOpen.snapshotFilters} onToggle={event => {
+        updateDetailsOpen({ snapshotFilters: event.target.open })
+        event.stopPropagation()
+      }}>
+        <summary>{test.snapshotFilters.length} Snapshot Filter{test.snapshotFilters.length === 1 ? `` : `s`}</summary>
 
-          {test.snapshotFilters.map((snapshotFilter, snapshotFilterIndex) => (
-            <SnapshotFilter
-              key={`SnapshotFilter_${testGroupIndex}_${testIndex}_${snapshotFilterIndex}`}
-              store={store}
-              testGroupIndex={testGroupIndex}
-              testIndex={testIndex}
-              snapshotFilterIndex={snapshotFilterIndex}
-              snapshotFilter={snapshotFilter}
-            />
-          ))}
+        {test.snapshotFilters.map((snapshotFilter, snapshotFilterIndex) => (
+          <SnapshotFilter
+            key={`SnapshotFilter_${testGroupIndex}_${testIndex}_${snapshotFilterIndex}`}
+            store={store}
+            testGroupIndex={testGroupIndex}
+            testIndex={testIndex}
+            snapshotFilterIndex={snapshotFilterIndex}
+            snapshotFilter={snapshotFilter}
+          />
+        ))}
 
-          <center>
-            <UI.Button onClick={() => store.addSnapshotFilter({ testGroupIndex, testIndex })}>
-              <span>Add Filter</span>
-            </UI.Button>
-          </center>
-        </section>
-      )}
+        <center>
+          <UI.Button onClick={() => store.addSnapshotFilter({ testGroupIndex, testIndex })}>
+            <span>Add Filter</span>
+          </UI.Button>
+        </center>
+      </details>
 
       <footer>
         {!test.frames.length ? (
@@ -199,14 +212,14 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
             </summary>
           </details>
         ) : (
-          <details open={isOpen} onToggle={event => {
-            setIsOpen(event.target.open)
+          <details open={detailsOpen.footer} onToggle={event => {
+            updateDetailsOpen({ footer: event.target.open })
             event.stopPropagation()
           }}>
             <summary>
               {(store.state === IDLE || store.testGroupIndex !== testGroupIndex || store.testIndex !== testIndex) && test.state === UNTESTED && !test.skip ? (
                 <UI.Icon style={{ padding: 4 }} dangerouslySetInnerHTML={{
-                  __html: octicons[isOpen ? `chevron-down` : `chevron-right`].toSVG({ width: 22, height: 22 })
+                  __html: octicons[detailsOpen.footer ? `chevron-down` : `chevron-right`].toSVG({ width: 22, height: 22 })
                 }} />
               ) : (
                 <UI.StateIcon
@@ -234,7 +247,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
         <aside>
           {store.state === IDLE && (!test.frames.length ? (
             <UI.Button backgroundColor='green' onClick={() => {
-              setIsOpen(true)
+              updateDetailsOpen({ footer: true })
               store.startRecording({ testGroupIndex, testIndex })
             }}>
               <span>Record</span>
@@ -246,7 +259,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
               </UI.Button>
 
               <UI.Button backgroundColor='green' onClick={() => {
-                setIsOpen(true)
+                updateDetailsOpen({ footer: true })
                 store.startTesting({ testGroupIndex, testIndex })
               }}>
                 <span>Run Test</span>
@@ -288,6 +301,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
             </UI.Button>
 
             <UI.Button backgroundColor='red' onClick={() => {
+              updateDetailsOpen({ eventSelection: true, snapshotFilters: true })
               setIsErasing(false)
 
               store.updateTest({
@@ -406,31 +420,36 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
     }
   }
 
-  > section {
+  > details {
     display: inline-block;
     vertical-align: top;
     width: calc(50% - 2.5px);
     padding: 10px 0;
     margin-right: 2.5px;
 
-    ~ section {
+    ~ details {
       margin-left: 2.5px;
       margin-right: 0;
     }
 
-    > header {
-      padding: 3px;
-      margin-bottom: 5px;
+    > summary {
+      padding: 3px 5px;
       font-size: 11px;
       line-height: 1;
       color: gray;
       text-transform: uppercase;
-      pointer-events: none;
+      cursor: pointer;
       transition: color 0.25s ease-in-out;
     }
 
+    &[open] {
+      > summary {
+        margin-bottom: 5px;
+      }
+    }
+
     &:hover {
-      > header {
+      > summary {
         color: inherit;
       }
     }

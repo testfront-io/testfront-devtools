@@ -73,11 +73,11 @@ const Frame = styled(({ store, testGroupIndex, testGroup, testIndex, test, frame
 
         <span>Snapshot</span>
 
-        {frame.error && typeof frame.error.html !== `undefined` && (
+        {frame.error && typeof frame.error.filteredHtml !== `undefined` && (
           <div>
-            {(typeof frame.html === `string` && typeof frame.error.html === `string`) ? (
+            {(typeof frame.html === `string` && typeof frame.error.filteredHtml === `string`) ? (
               <pre dangerouslySetInnerHTML={{
-                __html: utilities.getPrettyHtml(utilities.getDiffs(frame.html, frame.error.html))
+                __html: utilities.getPrettyHtml(utilities.getDiffs(frame.error.filteredFrameHtml, frame.error.filteredHtml))
               }} />
             ) : (
               <span>The recorded container {frame.html === null ? `was not found` : `was found`}, while the tested container {frame.html === null ? `was` : `was not`}.</span>

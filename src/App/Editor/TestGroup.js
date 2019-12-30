@@ -25,7 +25,15 @@ export const matchTestGroupPath = ({ store, testGroup }) => {
 const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
   const [ isDeleting, setIsDeleting ] = React.useState(false)
   const [ isErasing, setIsErasing ] = React.useState(false)
-  const [ isOpen, setIsOpen ] = React.useState(false)
+
+  const [ detailsOpen, setDetailsOpen ] = React.useState({
+    footer: false
+  })
+
+  const updateDetailsOpen = updates => setDetailsOpen({
+    ...detailsOpen,
+    ...updates
+  })
 
   return (
     <section { ...props }>
@@ -143,14 +151,14 @@ const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
             </summary>
           </details>
         ) : (
-          <details open={isOpen} onToggle={event => {
-            setIsOpen(event.target.open)
+          <details open={detailsOpen.footer} onToggle={event => {
+            updateDetailsOpen({ footer: event.target.open })
             event.stopPropagation()
           }}>
             <summary>
               {(store.state === IDLE || store.testGroupIndex !== testGroupIndex) && testGroup.state === UNTESTED && !testGroup.skip ? (
                 <UI.Icon dangerouslySetInnerHTML={{
-                  __html: octicons[isOpen ? `chevron-down` : `chevron-right`].toSVG({ width: 30, height: 30 })
+                  __html: octicons[detailsOpen.footer ? `chevron-down` : `chevron-right`].toSVG({ width: 30, height: 30 })
                 }} />
               ) : (
                 <UI.StateIcon
@@ -191,7 +199,7 @@ const TestGroup = styled(({ store, testGroupIndex, testGroup, ...props }) => {
             <React.Fragment>
               {!testGroup.tests.length ? (
                 <UI.Button onClick={() => {
-                  setIsOpen(true)
+                  updateDetailsOpen({ footer: true })
                   store.addTest({ testGroupIndex })
                 }}>
                   <span>Add Test</span>
