@@ -1,7 +1,6 @@
 {
   "name": "testfront-devtools",
   "version": "1.0.0",
-  "private": true,
   "description": "TestFront.io DevTools",
   "author": "testfront.io",
   "license": "MIT",
