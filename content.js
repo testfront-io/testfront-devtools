@@ -35,7 +35,8 @@ let store = {
     testGroups: [],
 
     timeLimits: {
-      test: 10000
+      test: 10000,
+      saveData: 3000
     },
 
     delays: {

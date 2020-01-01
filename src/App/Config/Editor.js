@@ -25,6 +25,27 @@ const Editor = styled(({ store, onSubmit, ...props }) => (
           }
         }}
       />
+
+      <UI.Input
+        type='number'
+        name='timeLimits.saveData'
+        placeholder='Save Data Delay (ms)'
+        value={store.data.timeLimits.saveData}
+        onBlur={event => {
+          const saveData = Number(event.target.value)
+
+          if (saveData !== store.data.timeLimits.saveData) {
+            store.updateStore(store => ({
+              data: {
+                timeLimits: {
+                  ...store.data.timeLimits,
+                  saveData
+                }
+              }
+            }))
+          }
+        }}
+      />
     </section>
   </UI.Form>
 ))`
@@ -39,17 +60,6 @@ const Editor = styled(({ store, onSubmit, ...props }) => (
     > ${UI.Input} {
       width: 100%;
       margin-bottom: 10px;
-    }
-  }
-
-  > section {
-    &:last-of-type {
-      margin-bottom: 105px;
-      text-align: center;
-
-      > ${UI.Button} {
-        padding: 5px 30px;
-      }
     }
   }
 `

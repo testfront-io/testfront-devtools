@@ -17,8 +17,9 @@ const Logo = styled((props) => (
 
   > span {
     display: inline-block;
+    vertical-align: middle;
     margin-right: 2px;
-    
+
     &:nth-child(odd) {
       color: ${({ theme }) => theme.colors.primary};
     }

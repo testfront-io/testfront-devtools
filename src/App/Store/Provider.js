@@ -28,8 +28,7 @@ const local = {
 }
 
 /**
- * Simple key-value store. Uses `chrome.storage.local` by default.
- * Use `store.updateStore(store => ({ source: 'server' }))` to use with `testfront-extension-server`.
+ * Simple key-value store.
  */
 const Provider = ({ children }) => {
   const [ timeouts ] = React.useState({})
@@ -40,7 +39,7 @@ const Provider = ({ children }) => {
     shouldSaveData: false,
     shouldUpdateContentStore: false,
 
-    source: `local`,
+    source: `server`,
     serverBaseURL: API.client.defaults.baseURL,
     status: ``,
     error: ``,
@@ -98,7 +97,8 @@ const Provider = ({ children }) => {
       }*/],
 
       timeLimits: {
-        test: 10000
+        test: 10000,
+        saveData: 3000
       },
 
       delays: {
@@ -227,6 +227,8 @@ const Provider = ({ children }) => {
     }),
 
     saveData: () => setStore(store => {
+      clearTimeout(timeouts.saveData)
+
       const storeSavingStatus = {
         ...store,
         status: `saving`,
@@ -243,7 +245,11 @@ const Provider = ({ children }) => {
 
         if (store.source === `server`) {
           try {
-            await API.client.put(`data`, store.data)
+            await API.client.put(`data`, JSON.stringify(store.data), {
+              headers: {
+                'Content-Type': `text/plain`
+              }
+            })
           } catch (error) {
             updates.error = API.utilities.getErrorMessage(error) || `unknown`
           }
@@ -787,7 +793,7 @@ const Provider = ({ children }) => {
 
       if (store.shouldSaveData) {
         clearTimeout(timeouts.saveData)
-        timeouts.saveData = setTimeout(() => store.saveData())
+        timeouts.saveData = setTimeout(() => store.saveData(), store.data.timeLimits.saveData || 0)
       }
     }
   }, [ store, timeouts ])
