@@ -181,6 +181,12 @@ const Provider = ({ children }) => {
       const { origin } = store.location
       const config = await local.get(`${origin}/config`)
 
+      window.addEventListener(`beforeunload`, () => store.updateStore(store => {
+        if (store.shouldSaveData) {
+          store.saveData()
+        }
+      }))
+
       setStore(store => ({
         ...store,
         isConfigured: true,
