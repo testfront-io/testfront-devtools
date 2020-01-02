@@ -90,6 +90,8 @@ const Error = styled(({ store, ...props }) => {
     }
 
     > div {
+      margin-top: 5px;
+
       > pre {
         display: inline-block;
         margin: 0 auto;

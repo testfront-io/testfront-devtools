@@ -51,6 +51,8 @@ const Menu = styled(({ store, ...props }) => {
 
       > ${UI.Header} {
         > span {
+          display: inline-block;
+          vertical-align: middle;
           color: ${({ theme }) => theme.colors.text};
           text-transform: uppercase;
           font-size: 20px;

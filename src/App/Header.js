@@ -60,7 +60,7 @@ const Header = styled(({ store, ...props }) => (
       width: 20px;
       height: 20px;
       padding: 1px;
-      color: ${({ store, theme }) => store.shouldSaveData ? theme.colors.yellow : theme.colors.green};
+      color: ${({ store, theme }) => (store.shouldSaveData || store.status === `saving`) ? theme.colors.yellow : theme.colors.green};
       opacity: ${({ store, theme }) => store.shouldSaveData ? 0.75 : 0.9};
       cursor: pointer;
       transition: all 0.25s ease-in-out;
