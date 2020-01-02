@@ -36,7 +36,7 @@ let store = {
 
     timeLimits: {
       test: 10000,
-      saveData: 3000
+      saveData: 1500
     },
 
     delays: {
