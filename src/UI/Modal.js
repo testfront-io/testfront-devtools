@@ -32,26 +32,28 @@ const Modal = styled(({ center, children, ...props }) => center ? (
   overflow: auto;
 
   > div {
+    position: relative;
     width: 600px;
     max-width: 100%;
     min-height: 100%;
     margin: 0 auto;
-    padding: 60px 10px 10px;
-    position: relative;
 
-    ${({ center }) => center && `
+    ${({ center }) => center ? `
       > div {
         display: table;
-        min-width: 100%;
-        min-height: 100%;
-        max-width: 600px;
+        padding: 10px;
         margin: 0 auto;
-    
+        width: 100%;
+        max-width: 600px;
+        min-height: 100vh;
+
         > div {
           display: table-cell;
           vertical-align: middle;
         }
       }
+    ` : `
+      padding: 10px;
     `}
   }
 `

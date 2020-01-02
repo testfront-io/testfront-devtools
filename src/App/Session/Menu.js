@@ -13,7 +13,7 @@ const Menu = styled(({ store, ...props }) => {
       <User.Avatar onClick={toggleVisibility} />
 
       {visible && (
-        <UI.Modal center={true}>
+        <UI.Modal>
           <Context.Consumer>
             {({ user }) => (
               <UI.Header>
@@ -45,18 +45,16 @@ const Menu = styled(({ store, ...props }) => {
 
   > ${UI.Modal} {
     > div {
-      > div {
-        > div {
-          > ${UI.Header} {
-            > span {
-              color: ${({ theme }) => theme.colors.text};
-              text-transform: uppercase;
-              font-size: 20px;
-              line-height: 1;
-              letter-spacing: -2px;
-              white-space: nowrap;
-            }
-          }
+      padding-top: 60px;
+
+      > ${UI.Header} {
+        > span {
+          color: ${({ theme }) => theme.colors.text};
+          text-transform: uppercase;
+          font-size: 20px;
+          line-height: 1;
+          letter-spacing: -2px;
+          white-space: nowrap;
         }
       }
     }

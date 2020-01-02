@@ -471,7 +471,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
     }
 
     > center {
-      margin-top: 10px;
+      margin: 10px 0;
 
       > ${UI.Button} {
         height: 25px;

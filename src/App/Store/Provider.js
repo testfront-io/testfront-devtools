@@ -2,6 +2,7 @@
 import React from 'react'
 import * as API from '../../API'
 import Context from './Context'
+import Error from './Error'
 import * as UI from '../../UI'
 
 import {
@@ -39,8 +40,11 @@ const Provider = ({ children }) => {
     shouldSaveData: false,
     shouldUpdateContentStore: false,
 
-    source: `server`,
-    serverBaseURL: API.client.defaults.baseURL,
+    config: {
+      source: `server`,
+      serverBaseURL: API.client.defaults.baseURL
+    },
+
     status: ``,
     error: ``,
 
@@ -175,19 +179,19 @@ const Provider = ({ children }) => {
 
     configure: async (store) => {
       const { origin } = store.location
-      const { source, serverBaseURL } = await local.get([`${origin}/source`, `${origin}/serverBaseURL`])
+      const config = await local.get(`${origin}/config`)
 
       setStore(store => ({
         ...store,
         isConfigured: true,
-        source: source || store.source,
-        serverBaseURL: serverBaseURL || store.serverBaseURL
+        config: config || store.config
       }))
     },
 
     fetchData: () => setStore(store => {
       const storeFetchingStatus = {
         ...store,
+        isInitialized: false,
         status: `fetching`,
         error: ``
       }
@@ -200,7 +204,7 @@ const Provider = ({ children }) => {
           error: ``
         }
 
-        if (store.source === `server`) {
+        if (store.config.source === `server`) {
           try {
             updates.data = (await API.client.get(`data`)).data || store.data
           } catch (error) {
@@ -243,7 +247,7 @@ const Provider = ({ children }) => {
           error: ``
         }
 
-        if (store.source === `server`) {
+        if (store.config.source === `server`) {
           try {
             await API.client.put(`data`, JSON.stringify(store.data), {
               headers: {
@@ -281,21 +285,12 @@ const Provider = ({ children }) => {
 
       const { origin } = (store.location || updates.location)
 
-      if (updates.source && updates.source !== store.source) {
-        local.set({ [`${origin}/source`]: updates.source })
+      if (updates.config) {
+        local.set({ [`${origin}/config`]: updates.config })
+        API.client.defaults.baseURL = updates.config.serverBaseURL || store.config.serverBaseURL
         updates.isInitialized = false
-        updates.shouldSaveData = true
         updates.status = ``
-        updates.error ``
-      }
-
-      if (updates.serverBaseURL && updates.serverBaseURL !== store.serverBaseURL) {
-        local.set({ [`${origin}/serverBaseURL`]: updates.serverBaseURL })
-        API.client.defaults.baseURL = store.serverBaseURL
-        updates.isInitialized = false
-        updates.shouldSaveData = true
-        updates.status = ``
-        updates.error ``
+        updates.error = ``
       }
 
       if (updates.data) {
@@ -781,7 +776,7 @@ const Provider = ({ children }) => {
       store.initializeLocation()
     } else if (!store.isConfigured) {
       store.configure(store)
-    } else if (store.status === ``) {
+    } else if (store.status === `` && !store.error) {
       if (!store.isInitialized) {
         store.fetchData()
         return
@@ -798,14 +793,26 @@ const Provider = ({ children }) => {
     }
   }, [ store, timeouts ])
 
-  return store.isInitialized ? (
+  if (!store.isInitialized) {
+    return (
+      <UI.Modal center={true}>
+        <UI.Spinner />
+      </UI.Modal>
+    )
+  }
+
+  if (store.error) {
+    return (
+      <UI.Modal center={true}>
+        <Error store={store} />
+      </UI.Modal>
+    )
+  }
+
+  return (
     <Context.Provider value={store}>
       {children}
     </Context.Provider>
-  ) : (
-    <UI.Modal center={true}>
-      <UI.Spinner />
-    </UI.Modal>
   )
 }
 

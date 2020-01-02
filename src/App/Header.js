@@ -18,6 +18,11 @@ const Header = styled(({ store, ...props }) => (
 
     <aside>
       <UI.Icon
+        title={(
+          (store.shouldSaveData && `Changes pending save...`)
+          || (store.status === `saving` && `Saving...`)
+          || `All changes saved.`
+        )}
         dangerouslySetInnerHTML={{ __html: octicons[`database`].toSVG({ width: 18, height: 18 }) }}
         onClick={() => store.saveData()}
       />

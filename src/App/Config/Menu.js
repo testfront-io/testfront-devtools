@@ -16,7 +16,7 @@ const Menu = styled(({ store, ...props }) => {
       />
 
       {visible && (
-        <UI.Modal center={true}>
+        <UI.Modal>
           <UI.Header>
             <span>
               Config
@@ -47,18 +47,16 @@ const Menu = styled(({ store, ...props }) => {
 
   > ${UI.Modal} {
     > div {
-      > div {
-        > div {
-          > ${UI.Header} {
-            > span {
-              color: ${({ theme }) => theme.colors.text};
-              text-transform: uppercase;
-              font-size: 20px;
-              line-height: 1;
-              letter-spacing: -2px;
-              white-space: nowrap;
-            }
-          }
+      padding-top: 60px;
+
+      > ${UI.Header} {
+        > span {
+          color: ${({ theme }) => theme.colors.text};
+          text-transform: uppercase;
+          font-size: 20px;
+          line-height: 1;
+          letter-spacing: -2px;
+          white-space: nowrap;
         }
       }
     }
