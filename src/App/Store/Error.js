@@ -28,22 +28,22 @@ const Error = styled(({ store, ...props }) => {
       </p>
 
       <p>
-        It looks like the <a href='https://www.npmjs.com/package/testfront-devtools-server' target='_blank' rel='noopener noreferrer'>TestFront DevTools Server</a> isn't running.
+        It looks like the <a href='https://www.npmjs.com/package/testfront-cli#devtools-server' target='_blank' rel='noopener noreferrer'>TestFront DevTools Server</a> isn't running.
       </p>
 
       <p>
         Install it with NPM:
 
         <div>
-          <pre>npm i testfront-devtools-server --save-dev</pre>
+          <pre>npm i testfront-cli --save-dev</pre>
         </div>
       </p>
 
       <p>
-        Start the server with:
+        Run the server with:
 
         <div>
-          <pre>testfront-devtools-server start</pre>
+          <pre>npm run testfront devtools-server</pre>
         </div>
       </p>
 
