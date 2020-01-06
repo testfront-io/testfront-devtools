@@ -1,5 +1,4 @@
 import React from 'react'
-import PropTypes from 'prop-types'
 
 /**
  * Assigns the value to a potentially deep key.
@@ -91,12 +90,6 @@ const Form = ({ onSubmit, onInput, getFormData, ...props }) => {
       { ...props }
     />
   )
-}
-
-Form.propTypes = {
-  onSubmit: PropTypes.func,
-  onInput: PropTypes.func,
-  getFormData: PropTypes.func.isRequired
 }
 
 Form.defaultProps = {

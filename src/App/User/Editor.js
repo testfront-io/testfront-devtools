@@ -6,16 +6,14 @@ const Editor = styled(({ store, ...props }) => (
   <UI.Form { ...props }>
   </UI.Form>
 ))`
-  padding: 35px 10px 20px;
+  width: 330px;
+  padding: 30px 15px;
   margin: 0 auto;
+  text-align: center;
 
-  ${UI.Combo},
-  ${UI.Input},
-  ${UI.List},
-  ${UI.Select},
-  ${UI.Textarea} {
+  > ${UI.Input} {
     width: 100%;
-    margin-bottom: 10px;
+    margin-bottom: 15px;
   }
 `
 

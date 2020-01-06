@@ -10,14 +10,13 @@ import H4 from './H4'
 import Header from './Header'
 import Icon from './Icon'
 import Input from './Input'
-import List from './List'
 import Modal from './Modal'
+import P from './P'
 import Rotate from './Rotate'
 import Select from './Select'
 import Spinner from './Spinner'
 import StateIcon from './StateIcon'
 import Table from './Table'
-import Text from './Text'
 import Textarea from './Textarea'
 import UL from './UL'
 
@@ -34,14 +33,13 @@ export {
   Header,
   Icon,
   Input,
-  List,
   Modal,
+  P,
   Rotate,
   Select,
   Spinner,
   StateIcon,
   Table,
-  Text,
   Textarea,
   UL
 }

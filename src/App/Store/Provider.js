@@ -59,6 +59,16 @@ const Provider = ({ children }) => {
     allTestGroups: false,
     allTests: false,
 
+    session: {/*
+      user: {
+        id,
+        phone,
+        email,
+        firstName,
+        lastName
+      }
+    */},
+
     data: {
       state: UNTESTED,
 
@@ -299,6 +309,13 @@ const Provider = ({ children }) => {
         updates.error = ``
       }
 
+      if (updates.session) {
+        updates.session = {
+          ...store.session,
+          ...updates.session
+        }
+      }
+
       if (updates.data) {
         updates.shouldSaveData = true
 
@@ -338,6 +355,14 @@ const Provider = ({ children }) => {
 
       return store
     }),
+
+    fetchSession: async () => {
+      try {
+        const { data: session } = await API.client.get(`session`)
+        store.updateStore(store => ({ session }))
+      } catch (error) {
+      }
+    },
 
     startRecording: ({ testGroupIndex, testIndex, frameIndex = -1 }) => store.updateStore(store => {
       const updates = {

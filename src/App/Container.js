@@ -1,7 +1,5 @@
 import React from 'react'
-import PropTypes from 'prop-types'
-import styled, { ThemeProvider } from 'styled-components'
-import * as Store from './Store'
+import styled from 'styled-components'
 
 const Container = styled(({ title, theme, ...props }) => {
   React.useEffect(() => {
@@ -9,11 +7,7 @@ const Container = styled(({ title, theme, ...props }) => {
   }, [ title ])
 
   return (
-    <ThemeProvider theme={theme}>
-      <Store.Provider>
-        <main { ...props } />
-      </Store.Provider>
-    </ThemeProvider>
+    <main { ...props } />
   )
 })`
   position: relative;
@@ -24,24 +18,8 @@ const Container = styled(({ title, theme, ...props }) => {
   overflow-x: hidden;
 `
 
-Container.propTypes = {
-  title: PropTypes.string.isRequired,
-  theme: PropTypes.object.isRequired
-}
-
 Container.defaultProps = {
-  title: `TestFront.io DevTools`,
-  theme: {
-    colors: {
-      background: `#222222`,
-      primary: `#4070e0`,
-      text: `#bbbbbb`,
-      red: `#d02000`,
-      green: `#309000`,
-      blue: `#4070e0`,
-      yellow: `#e0e040`
-    }
-  }
+  title: `TestFront.io DevTools`
 }
 
 export default Container

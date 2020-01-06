@@ -9,6 +9,7 @@ const Avatar = styled(({ id = `Avatar`, ...props }) => props.src ? (
   <span id={id} { ...props } dangerouslySetInnerHTML={{ __html: octicons[`person`].toSVG({ width: 16, height: 16 }) }} />
 ))`
   display: inline-block;
+  vertical-align: middle;
   width: 20px;
   height: 20px;
   padding: 2px;

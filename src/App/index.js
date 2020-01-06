@@ -1,7 +1,6 @@
 import * as Config from './Config'
 import * as Editor from './Editor'
 import * as Layouts from './Layouts'
-import * as Session from './Session'
 import * as Store from './Store'
 import * as User from './User'
 
@@ -18,7 +17,6 @@ export {
   Config,
   Editor,
   Layouts,
-  Session,
   Store,
   User,
 

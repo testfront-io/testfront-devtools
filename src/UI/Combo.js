@@ -35,9 +35,10 @@ const Combo = styled(({
   const options = []
   const otherChildren = []
 
-  React.Children.forEach(children, child => {
+  React.Children.forEach(children, (child, index) => {
     if (child.type === `option`) {
       options.push(React.cloneElement(child, {
+        key: child.key || child.props.key || `option_${index}`,
         onMouseDown: () => {
           const { value } = child.props
           const nextState = { value }
