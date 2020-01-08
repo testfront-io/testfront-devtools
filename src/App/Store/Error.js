@@ -32,7 +32,7 @@ const Error = styled(({ store, ...props }) => {
       </p>
 
       <p>
-        Install it with NPM:
+        Add <pre>testfront-cli</pre> to your project with NPM:
 
         <div>
           <pre>npm i testfront-cli --save-dev</pre>
@@ -89,21 +89,25 @@ const Error = styled(({ store, ...props }) => {
       width: 100%;
     }
 
+    pre {
+      display: inline-block;
+      margin: 0 auto;
+      padding: 0;
+      background: rgba(0, 0, 0, 0.25);
+      color: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+      }
+    }
+
     > div {
       margin-top: 5px;
 
       > pre {
-        display: inline-block;
-        margin: 0 auto;
         padding: 5px;
-        background: rgba(0, 0, 0, 0.25);
-        color: rgba(255, 255, 255, 0.9);
-        cursor: pointer;
-
-        &:hover {
-          background: rgba(0, 0, 0, 0.5);
-          color: white;
-        }
       }
     }
   }
