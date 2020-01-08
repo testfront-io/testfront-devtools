@@ -129,9 +129,9 @@ const updateStore = (updates, eventType) => {
   } else if (startTesting) {
     setTestTimeouts()
     verifyTestGroupPath()
+    simulateCurrentFrameEvent()
     compareLocationFrame({ eventType })
     compareCurrentSnapshotHtml()
-    simulateCurrentFrameEvent()
   } else if (stopTesting) {
     clearTimeouts(`test`)
   }
@@ -1253,8 +1253,8 @@ documentObserver.observe(document.documentElement, {
 const main = () => {
   setStoreLocation()
   verifyTestGroupPath()
-  compareCurrentSnapshotHtml()
   simulateCurrentFrameEvent()
+  compareCurrentSnapshotHtml()
   sendFrameTestResults()
   window.requestAnimationFrame(main)
 }
