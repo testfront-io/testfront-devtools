@@ -3,7 +3,7 @@
   "version": "1.0",
   "manifest_version": 2,
   "minimum_chrome_version": "60.0",
-  "description": "Automatic tests for your frontend as you build it.",
+  "description": "Create end-to-end tests without code.",
 
   "permissions": [
     "tabs",
