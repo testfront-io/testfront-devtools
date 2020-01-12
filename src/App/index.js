@@ -7,7 +7,6 @@ import * as User from './User'
 import App from './App'
 import Container from './Container'
 import Header from './Header'
-import Logo from './Logo'
 
 import * as utilities from './utilities'
 
@@ -23,7 +22,6 @@ export {
   App,
   Container,
   Header,
-  Logo,
 
   utilities
 }

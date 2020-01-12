@@ -4,7 +4,6 @@ import { mix } from 'polished'
 import { Link } from 'react-router-dom'
 import octicons from 'octicons'
 import * as UI from '../UI'
-import Logo from './Logo'
 import * as Config from './Config'
 import * as User from './User'
 
@@ -12,7 +11,9 @@ const Header = styled(({ store, ...props }) => (
   <UI.Header { ...props }>
     <div>
       <Link to='/'>
-        <Logo />
+        <span>
+          <span>Test</span><span>Front</span>
+        </span>
       </Link>
     </div>
 
@@ -48,6 +49,27 @@ const Header = styled(({ store, ...props }) => (
       vertical-align: middle;
       font-size: 20px;
       line-height: 1;
+
+      > span {
+        display: inline-block;
+        vertical-align: middle;
+        color: ${({ theme }) => theme.colors.text};
+        text-transform: uppercase;
+        font-size: 20px;
+        line-height: 1;
+        letter-spacing: -2px;
+        white-space: nowrap;
+
+        > span {
+          display: inline-block;
+          vertical-align: middle;
+          margin-right: 2px;
+
+          &:nth-child(odd) {
+            color: ${({ theme }) => theme.colors.primary};
+          }
+        }
+      }
     }
   }
 
