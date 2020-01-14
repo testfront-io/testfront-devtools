@@ -5,23 +5,36 @@ import octicons from 'octicons'
 /**
  * You can center the modal's contents (both horizontally and vertically) by passing `center` as `true`.
  */
-const Modal = styled(({ center, children, ...props }) => center ? (
-  <div { ...props }>
-    <div>
+const Modal = styled(({ center, children, ...props }) => {
+  React.useEffect(() => {
+    const { scrollX, scrollY } = window
+
+    document.body.classList.add(`scroll-disabled`)
+
+    return () => {
+      document.body.classList.remove(`scroll-disabled`)
+      window.scrollTo(scrollX, scrollY)
+    }
+  })
+
+  return center ? (
+    <div { ...props }>
       <div>
         <div>
-          {children}
+          <div>
+            {children}
+          </div>
         </div>
       </div>
     </div>
-  </div>
-) : (
-  <div { ...props }>
-    <div>
-      {children}
+  ) : (
+    <div { ...props }>
+      <div>
+        {children}
+      </div>
     </div>
-  </div>
-))`
+  )
+})`
   z-index: 2000;
   position: fixed;
   top: 0;
