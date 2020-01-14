@@ -73,12 +73,19 @@ const Modal = styled(({ center, children, ...props }) => {
 
 /**
  * You can render this within your `Modal` with an `onClick` handler.
+ * Pass `fixed` as `false` to use relative positioning instead.
  */
 Modal.CloseButton = styled(({ type = `button`, dangerouslySetInnerHTML = { __html: octicons[`x`].toSVG({ width: 20, height: 20 }) }, ...props }) => (
   <button type={type} dangerouslySetInnerHTML={dangerouslySetInnerHTML} { ...props } />
 ))`
   z-index: 1002;
-  position: relative;
+  ${({ fixed = true }) => fixed ? css`
+    position: fixed;
+    top: 0;
+    right: 7.5px;
+  ` : `
+    position: relative;
+  `}
   width: 30px;
   height: 30px;
   padding: 5px;

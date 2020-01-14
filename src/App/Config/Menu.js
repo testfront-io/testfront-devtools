@@ -22,10 +22,7 @@ const Menu = styled(({ store, ...props }) => {
               Config
             </span>
 
-            <UI.Modal.CloseButton
-              style={{ position: `absolute`, top: 0, right: 5 }}
-              onClick={toggleVisibility}
-            />
+            <UI.Modal.CloseButton onClick={toggleVisibility} />
           </UI.Header>
 
           <Editor store={store} />

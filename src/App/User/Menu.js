@@ -14,10 +14,7 @@ const Menu = styled(({ store, ...props }) => {
 
       {visible && (!store.session.user ? (
         <UI.Modal center={true}>
-          <UI.Modal.CloseButton
-            style={{ position: `absolute`, top: 0, right: 7.5 }}
-            onClick={toggleVisibility}
-          />
+          <UI.Modal.CloseButton onClick={toggleVisibility} />
         </UI.Modal>
       ) : (
         <UI.Modal>
@@ -29,10 +26,7 @@ const Menu = styled(({ store, ...props }) => {
 
           <Editor store={store} user={store.session.user} />
 
-          <UI.Modal.CloseButton
-            style={{ position: `absolute`, top: 0, right: 7.5 }}
-            onClick={toggleVisibility}
-          />
+          <UI.Modal.CloseButton onClick={toggleVisibility} />
         </UI.Modal>
       ))}
     </div>
