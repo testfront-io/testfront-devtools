@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom'
 import octicons from 'octicons'
 import * as UI from '../UI'
 import * as Config from './Config'
-import * as User from './User'
 
 const Header = styled(({ store, ...props }) => (
   <UI.Header { ...props }>
@@ -29,7 +28,6 @@ const Header = styled(({ store, ...props }) => (
       />
 
       <Config.Menu store={store} />
-      <User.Menu store={store} />
     </aside>
   </UI.Header>
 ))`
