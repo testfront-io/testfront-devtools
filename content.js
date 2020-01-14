@@ -754,7 +754,7 @@ const getSnapshotHtml = () => {
 }
 
 /**
- * Applies the current test's filters to the provided `html`.
+ * Applies the global snapshot filters plus the current test's filters to the provided `html`.
  */
 const applySnapshotFilters = html => {
   const { testGroupIndex, testIndex } = store
@@ -762,7 +762,7 @@ const applySnapshotFilters = html => {
   const testGroup = testGroups[testGroupIndex]
   const tests = testGroup && testGroup.tests
   const test = tests && tests[testIndex]
-  const snapshotFilters = test && test.snapshotFilters
+  const snapshotFilters = (store.data.snapshotFilters || []).concat((test && test.snapshotFilters) || [])
 
   if (!html || !snapshotFilters || !snapshotFilters.length) {
     return html

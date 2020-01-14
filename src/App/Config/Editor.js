@@ -1,6 +1,8 @@
 import React from 'react'
 import styled from 'styled-components'
+import { mix } from 'polished'
 import * as UI from '../../UI'
+import SnapshotFilter from '../Editor/SnapshotFilter'
 
 const Editor = styled(({ store, onSubmit, ...props }) => (
   <UI.Form { ...props }>
@@ -100,15 +102,44 @@ const Editor = styled(({ store, onSubmit, ...props }) => (
         />
       </div>
     </details>
+
+    <details open={true}>
+      <summary>
+        Global Snapshot Filters
+      </summary>
+
+      <div>
+        {store.data.snapshotFilters.map((snapshotFilter, snapshotFilterIndex) => (
+          <SnapshotFilter
+            key={`SnapshotFilter_${snapshotFilterIndex}`}
+            store={store}
+            snapshotFilterIndex={snapshotFilterIndex}
+            snapshotFilter={snapshotFilter}
+          />
+        ))}
+
+        <center>
+          <UI.Button onClick={() => store.addSnapshotFilter()}>
+            <span>Add Filter</span>
+          </UI.Button>
+        </center>
+      </div>
+    </details>
   </UI.Form>
 ))`
+  width: 300px;
+  max-width: 100%;
+  margin: 0 auto;
+
   > details {
+    padding: 10px;
     margin-bottom: 30px;
+    box-shadow: 0 -3px 6px 6px rgba(0, 0, 0, 0.05);
+    background: ${({ theme }) => mix(0.5, theme.colors.background, `rgba(47, 47, 47, 1)`)};
 
     > summary {
       font-size: 20px;
       line-height: 1;
-      margin-bottom: 10px;
       cursor: pointer;
 
       &:hover {
@@ -117,17 +148,12 @@ const Editor = styled(({ store, onSubmit, ...props }) => (
     }
 
     > div {
-      padding-left: 20px;
+      margin-top: 10px;
 
       > ${UI.Input},
       > ${UI.Select} {
         display: block;
-        width: 50%;
-        margin-top: 5px;
-
-        &:first-child {
-          margin-top: 0;
-        }
+        width: 100%;
       }
     }
   }

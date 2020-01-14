@@ -72,6 +72,11 @@ const Provider = ({ children }) => {
     data: {
       state: UNTESTED,
 
+      snapshotFilters: [/*{
+        type: ``,
+        values: {}
+      }*/],
+
       testGroups: [/*{
         state: UNTESTED,
         description: ``,
@@ -674,7 +679,7 @@ const Provider = ({ children }) => {
       }
     })),
 
-    addSnapshotFilter: ({ testGroupIndex, testIndex, snapshotFilter = {} }) => store.updateStore(store => ({
+    addTestSnapshotFilter: ({ testGroupIndex, testIndex, snapshotFilter = {} }) => store.updateStore(store => ({
       data: {
         testGroups: [
           ...store.data.testGroups.slice(0, testGroupIndex),
@@ -701,7 +706,7 @@ const Provider = ({ children }) => {
       }
     })),
 
-    updateSnapshotFilter: ({ testGroupIndex, testIndex, snapshotFilterIndex, updates }) => store.updateStore(store => ({
+    updateTestSnapshotFilter: ({ testGroupIndex, testIndex, snapshotFilterIndex, updates }) => store.updateStore(store => ({
       data: {
         testGroups: [
           ...store.data.testGroups.slice(0, testGroupIndex),
@@ -728,7 +733,7 @@ const Provider = ({ children }) => {
       }
     })),
 
-    deleteSnapshotFilter: ({ testGroupIndex, testIndex, snapshotFilterIndex }) => store.updateStore(store => ({
+    deleteTestSnapshotFilter: ({ testGroupIndex, testIndex, snapshotFilterIndex }) => store.updateStore(store => ({
       data: {
         testGroups: [
           ...store.data.testGroups.slice(0, testGroupIndex),
@@ -747,6 +752,41 @@ const Provider = ({ children }) => {
             ]
           },
           ...store.data.testGroups.slice(testGroupIndex + 1)
+        ]
+      }
+    })),
+
+    addSnapshotFilter: ({ snapshotFilter = {} } = {}) => store.updateStore(store => ({
+      data: {
+        snapshotFilters: [
+          ...store.data.snapshotFilters,
+          {
+            type: ``,
+            values: {},
+            ...snapshotFilter
+          }
+        ]
+      }
+    })),
+
+    updateSnapshotFilter: ({ snapshotFilterIndex, updates }) => store.updateStore(store => ({
+      data: {
+        snapshotFilters: [
+          ...store.data.snapshotFilters.slice(0, snapshotFilterIndex),
+          {
+            ...store.data.snapshotFilters[snapshotFilterIndex],
+            ...updates
+          },
+          ...store.data.snapshotFilters.slice(snapshotFilterIndex + 1)
+        ]
+      }
+    })),
+
+    deleteSnapshotFilter: ({ snapshotFilterIndex }) => store.updateStore(store => ({
+      data: {
+        snapshotFilters: [
+          ...store.data.snapshotFilters.slice(0, snapshotFilterIndex),
+          ...store.data.snapshotFilters.slice(snapshotFilterIndex + 1)
         ]
       }
     })),

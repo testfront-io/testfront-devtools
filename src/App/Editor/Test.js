@@ -196,7 +196,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
         ))}
 
         <center>
-          <UI.Button onClick={() => store.addSnapshotFilter({ testGroupIndex, testIndex })}>
+          <UI.Button onClick={() => store.addTestSnapshotFilter({ testGroupIndex, testIndex })}>
             <span>Add Filter</span>
           </UI.Button>
         </center>

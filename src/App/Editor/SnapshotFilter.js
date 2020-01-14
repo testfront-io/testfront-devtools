@@ -7,7 +7,8 @@ import {
   IDLE
 } from '../../constants'
 
-const SnapshotFilter = styled(({ store, testGroupIndex, testGroup, testIndex, test, snapshotFilterIndex, snapshotFilter, ...props }) => {
+const SnapshotFilter = styled(({ store, testGroupIndex, testIndex, snapshotFilterIndex, snapshotFilter, ...props }) => {
+  const isGlobal = typeof testGroupIndex === `undefined` && typeof testIndex === `undefined`
   const [ isDeleting, setIsDeleting ] = React.useState(false)
 
   if (isDeleting) {
@@ -24,7 +25,12 @@ const SnapshotFilter = styled(({ store, testGroupIndex, testGroup, testIndex, te
 
             <UI.Button backgroundColor='red' onClick={() => {
               setIsDeleting(false)
-              store.deleteSnapshotFilter({ testGroupIndex, testIndex, snapshotFilterIndex })
+
+              if (isGlobal) {
+                store.deleteSnapshotFilter({ snapshotFilterIndex })
+              } else {
+                store.deleteTestSnapshotFilter({ testGroupIndex, testIndex, snapshotFilterIndex })
+              }
             }}>
               <span dangerouslySetInnerHTML={{ __html: octicons[`trashcan`].toSVG({ width: 15, height: 15 }) }} />
               <span>Delete</span>
@@ -46,24 +52,43 @@ const SnapshotFilter = styled(({ store, testGroupIndex, testGroup, testIndex, te
             const type = event.target.value
 
             if (type) {
-              store.updateSnapshotFilter({
-                testGroupIndex,
-                testIndex,
-                snapshotFilterIndex,
-                updates: {
-                  type,
-                  values: (
-                    type === `removeElements` && {
-                      elementsSelector: ``
-                    }
-                  ) || (
-                    type === `removeAttribute` && {
-                      attribute: ``,
-                      elementsSelector: `*`
-                    }
-                  ) || {}
-                }
-              })
+              if (isGlobal) {
+                store.updateSnapshotFilter({
+                  snapshotFilterIndex,
+                  updates: {
+                    type,
+                    values: (
+                      type === `removeElements` && {
+                        elementsSelector: ``
+                      }
+                    ) || (
+                      type === `removeAttribute` && {
+                        attribute: ``,
+                        elementsSelector: `*`
+                      }
+                    ) || {}
+                  }
+                })
+              } else {
+                store.updateTestSnapshotFilter({
+                  testGroupIndex,
+                  testIndex,
+                  snapshotFilterIndex,
+                  updates: {
+                    type,
+                    values: (
+                      type === `removeElements` && {
+                        elementsSelector: ``
+                      }
+                    ) || (
+                      type === `removeAttribute` && {
+                        attribute: ``,
+                        elementsSelector: `*`
+                      }
+                    ) || {}
+                  }
+                })
+              }
             }
           }}
         >
@@ -85,17 +110,29 @@ const SnapshotFilter = styled(({ store, testGroupIndex, testGroup, testIndex, te
             const elementsSelector = event.target.value
 
             if (elementsSelector !== snapshotFilter.values.elementsSelector) {
-              store.updateSnapshotFilter({
-                testGroupIndex,
-                testIndex,
-                snapshotFilterIndex,
-                updates: {
-                  values: {
-                    ...snapshotFilter.values,
-                    elementsSelector
+              if (isGlobal) {
+                store.updateSnapshotFilter({
+                  snapshotFilterIndex,
+                  updates: {
+                    values: {
+                      ...snapshotFilter.values,
+                      elementsSelector
+                    }
                   }
-                }
-              })
+                })
+              } else {
+                store.updateTestSnapshotFilter({
+                  testGroupIndex,
+                  testIndex,
+                  snapshotFilterIndex,
+                  updates: {
+                    values: {
+                      ...snapshotFilter.values,
+                      elementsSelector
+                    }
+                  }
+                })
+              }
             }
           }}
         />
@@ -114,17 +151,29 @@ const SnapshotFilter = styled(({ store, testGroupIndex, testGroup, testIndex, te
               const attribute = event.target.value
 
               if (attribute !== snapshotFilter.values.attribute) {
-                store.updateSnapshotFilter({
-                  testGroupIndex,
-                  testIndex,
-                  snapshotFilterIndex,
-                  updates: {
-                    values: {
-                      ...snapshotFilter.values,
-                      attribute
+                if (isGlobal) {
+                  store.updateSnapshotFilter({
+                    snapshotFilterIndex,
+                    updates: {
+                      values: {
+                        ...snapshotFilter.values,
+                        attribute
+                      }
                     }
-                  }
-                })
+                  })
+                } else {
+                  store.updateTestSnapshotFilter({
+                    testGroupIndex,
+                    testIndex,
+                    snapshotFilterIndex,
+                    updates: {
+                      values: {
+                        ...snapshotFilter.values,
+                        attribute
+                      }
+                    }
+                  })
+                }
               }
             }}
           />
@@ -137,17 +186,29 @@ const SnapshotFilter = styled(({ store, testGroupIndex, testGroup, testIndex, te
               const elementsSelector = event.target.value
 
               if (elementsSelector !== snapshotFilter.values.elementsSelector) {
-                store.updateSnapshotFilter({
-                  testGroupIndex,
-                  testIndex,
-                  snapshotFilterIndex,
-                  updates: {
-                    values: {
-                      ...snapshotFilter.values,
-                      elementsSelector
+                if (isGlobal) {
+                  store.updateSnapshotFilter({
+                    snapshotFilterIndex,
+                    updates: {
+                      values: {
+                        ...snapshotFilter.values,
+                        elementsSelector
+                      }
                     }
-                  }
-                })
+                  })
+                } else {
+                  store.updateTestSnapshotFilter({
+                    testGroupIndex,
+                    testIndex,
+                    snapshotFilterIndex,
+                    updates: {
+                      values: {
+                        ...snapshotFilter.values,
+                        elementsSelector
+                      }
+                    }
+                  })
+                }
               }
             }}
           />
