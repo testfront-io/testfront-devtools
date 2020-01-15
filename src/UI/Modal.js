@@ -82,7 +82,12 @@ Modal.CloseButton = styled(({ type = `button`, dangerouslySetInnerHTML = { __htm
   ${({ fixed = true }) => fixed ? css`
     position: fixed;
     top: 0;
-    right: 7.5px;
+    right: 5px;
+
+    @media (min-width: 600px) {
+      right: 50%;
+      margin-right: -295px;
+    }
   ` : `
     position: relative;
   `}
