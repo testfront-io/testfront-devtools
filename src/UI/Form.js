@@ -48,7 +48,7 @@ export const getFormData = (form, selector = `[name]`) => {
           )
         } catch (error) {
         }
-      } else if (!element.value && element.innerText) {
+      } else if (!element.value && element.value !== `` && element.innerText) {
         getDeepObject(element.name, element.innerText, formData)
       } else if (element.type === 'checkbox') {
         getDeepObject(element.name, element.checked ? element.value : '', formData)
