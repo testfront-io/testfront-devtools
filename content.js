@@ -58,7 +58,7 @@ let store = {
  * We'll want to synchronously reload the store in this case,
  * so that we can immediately resume recording or testing.
  */
-const storeKey = `__TestFront_content_script_store`
+const storeKey = `__TestFront__contentScriptStore`
 const initializeStore = () => {
   let savedStore = null
 
