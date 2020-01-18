@@ -16,9 +16,11 @@
     "styled-components": "^4.4.0"
   },
   "devDependencies": {
+    "archiver": "^3.1.1",
     "cross-env": "^6.0.3",
     "eslint": "^6.5.1",
     "eslint-plugin-react-app": "^6.0.3",
+    "fs-extra": "^8.1.0",
     "typescript": "^3.7.2"
   },
   "scripts": {
@@ -26,7 +28,8 @@
     "build": "cross-env INLINE_RUNTIME_CHUNK=false PUBLIC_URL=. react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "lint": "eslint '**/*.js'"
+    "lint": "eslint '**/*.js'",
+    "zip": "npm run build && node ./zip.js"
   },
   "eslintConfig": {
     "extends": "react-app"
