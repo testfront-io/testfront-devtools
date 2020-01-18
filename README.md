@@ -1,6 +1,6 @@
 # testfront-devtools
 
-The easiest way to use this is to get it from the <a href='https://chrome.google.com/webstore/category/extensions' target='_blank' rel='noopener noreferrer'>Chrome Web Store</a>.
+The easiest way to use this is to get it from the <a href='https://chrome.google.com/webstore/detail/jjeedhjoocnngookmbfmjflefjddocdl' target='_blank' rel='noopener noreferrer'>Chrome Web Store</a>.
 
 After installation, open your web browser's developer tools and you'll see a new tab at the top called "TestFront".
 
