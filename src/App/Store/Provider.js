@@ -116,7 +116,7 @@ const Provider = ({ children }) => {
       }*/],
 
       timeLimits: {
-        test: 10000,
+        test: 5000,
         saveData: 1500
       },
 

@@ -35,7 +35,7 @@ let store = {
     testGroups: [],
 
     timeLimits: {
-      test: 10000,
+      test: 5000,
       saveData: 1500
     },
 
@@ -262,7 +262,7 @@ const timeouts = {
 
 /**
  * Clears and sets the timeouts.
- * Uses the `store.data.timeLimits` and defaults to 10 seconds if undefined.
+ * Uses the `store.data.timeLimits` and defaults to 5 seconds if undefined.
  * @param {object} object - timeout keys to functions
  */
 const setTimeouts = object => {
@@ -271,7 +271,7 @@ const setTimeouts = object => {
   for (let key in object) {
     timeouts[key] = setTimeout(
       object[key],
-      typeof store.data.timeLimits[key] !== `undefined` ? store.data.timeLimits[key] : 10000
+      typeof store.data.timeLimits[key] !== `undefined` ? store.data.timeLimits[key] : 5000
     )
   }
 }
