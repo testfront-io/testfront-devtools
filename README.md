@@ -1,10 +1,10 @@
 # testfront-devtools
 
-The easiest way to use this is to get it from the <a href='https://chrome.google.com/webstore/detail/jjeedhjoocnngookmbfmjflefjddocdl' target='_blank' rel='noopener noreferrer'>Chrome Web Store</a>.
+Currently waiting on approval for the Chrome Web Store, so if you want to try this out before then, you will need to either enable "Developer Mode" for your browser's extensions and extract and install the [v1.0 release](https://github.com/testfront-io/testfront-devtools/releases/tag/v1.0) as an unpacked extension or follow the [Custom Builds and Manual Installation](https://github.com/testfront-io/testfront-devtools#custom-builds-and-manual-installation) instructions below.
 
 After installation, open your web browser's developer tools and you'll see a new tab at the top called "TestFront".
 
-You can use TestFront DevTools with any web page using local storage mode, but if you're using it to test your own application(s), you should commit your tests to your project's repository by installing `testfront-cli` with the following:
+You can use TestFront DevTools with any web page using local storage mode, but if you're using it to test your own application(s), you should commit your tests to your project's repository by using `testfront-cli`'s DevTools server:
 ```
 npm i testfront-cli --save-dev
 ```
