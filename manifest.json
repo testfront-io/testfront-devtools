@@ -12,10 +12,10 @@
   ],
 
   "icons": {
-    "16": "public/images/check-16.png",
-    "32": "public/images/check-32.png",
-    "48": "public/images/check-48.png",
-    "128": "public/images/check-128.png"
+    "16": "build/images/check-16.png",
+    "32": "build/images/check-32.png",
+    "48": "build/images/check-48.png",
+    "128": "build/images/check-128.png"
   },
 
   "devtools_page": "devtools.html",
@@ -33,10 +33,10 @@
   "page_action": {
     "default_title": "TestFront",
     "default_icon": {
-      "16": "public/images/check-16.png",
-      "32": "public/images/check-32.png",
-      "48": "public/images/check-48.png",
-      "128": "public/images/check-128.png"
+      "16": "build/images/check-16.png",
+      "32": "build/images/check-32.png",
+      "48": "build/images/check-48.png",
+      "128": "build/images/check-128.png"
     }
   }
 }
