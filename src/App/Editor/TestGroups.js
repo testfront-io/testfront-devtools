@@ -64,6 +64,18 @@ const TestGroups = styled(({ store, testGroups, ...props }) => {
               </UI.Button>
             )}
 
+            {store.state === IDLE && testCount > 0 && Boolean(testGroups[store.testGroupIndex]?.tests[store.testIndex]) && (
+              <UI.Button backgroundColor='blue' onClick={() => store.startTesting({
+                testGroupIndex: store.testGroupIndex,
+                testIndex: store.testIndex,
+                frameIndex: store.frameIndex,
+                allTestGroups: true,
+                allTests: true
+              })}>
+                <span>Continue Tests</span>
+              </UI.Button>
+            )}
+
             {store.state === IDLE && testCount > 0 && (
               <UI.Button backgroundColor='green' onClick={() => store.startTesting({ allTestGroups: true, allTests: true })}>
                 <span>Run All Tests</span>

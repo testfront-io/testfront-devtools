@@ -296,49 +296,55 @@ const clearTimeouts = (keys = Object.keys(timeouts)) => {
 /**
  * Sets the timeouts specific to tests.
  */
-const setTestTimeouts = () => setTimeouts({
-  test: () => {
-    const { testGroupIndex, testIndex, frameIndex } = store
-    const { testGroups } = store.data
-    const testGroup = testGroups[testGroupIndex]
-    const tests = testGroup && testGroup.tests
-    const test = tests && tests[testIndex]
-    const frames = test && test.frames
-    const frame = frames && frames[frameIndex]
-
-    if (!frame) {
-      return
-    }
-
-    if (typeof frame.html !== `undefined`) {
-      handleFrameTestResult({
-        state: FAILED,
-        error: {
-          filteredHtml: applySnapshotFilters(getSnapshotHtml()),
-          filteredFrameHtml: applySnapshotFilters(frame.html)
-        }
-      })
-    } else if (locationEventTypes[frame.eventType]) {
-      handleFrameTestResult({
-        state: FAILED,
-        error: {
-          location: {
-            origin: window.location.origin,
-            pathname: window.location.pathname,
-            hash: window.location.hash
-          }
-        }
-      })
-    } else if (frame.eventType) {
-      handleFrameTestResult({
-        state: FAILED,
-        error: {
-          message: `Target not found.`
-        }
-      })
-    }
+const setTestTimeouts = () => {
+  if (store.state !== TESTING) {
+    return
   }
-})
+
+  setTimeouts({
+    test: () => {
+      const { testGroupIndex, testIndex, frameIndex } = store
+      const { testGroups } = store.data
+      const testGroup = testGroups[testGroupIndex]
+      const tests = testGroup && testGroup.tests
+      const test = tests && tests[testIndex]
+      const frames = test && test.frames
+      const frame = frames && frames[frameIndex]
+
+      if (!frame) {
+        return
+      }
+
+      if (typeof frame.html !== `undefined`) {
+        handleFrameTestResult({
+          state: FAILED,
+          error: {
+            filteredHtml: applySnapshotFilters(getSnapshotHtml()),
+            filteredFrameHtml: applySnapshotFilters(frame.html)
+          }
+        })
+      } else if (locationEventTypes[frame.eventType]) {
+        handleFrameTestResult({
+          state: FAILED,
+          error: {
+            location: {
+              origin: window.location.origin,
+              pathname: window.location.pathname,
+              hash: window.location.hash
+            }
+          }
+        })
+      } else if (frame.eventType) {
+        handleFrameTestResult({
+          state: FAILED,
+          error: {
+            message: `Target not found.`
+          }
+        })
+      }
+    }
+  })
+}
 
 /**
  * Keep track of event listeners.
@@ -470,7 +476,7 @@ const specialEventListeners = {
  * When testing, attempts to simulates the current frame event and updates the store based on the result.
  */
 const simulateCurrentFrameEvent = () => {
-  if (store.state !== TESTING || store.pendingTestGroupPath) {
+  if ((store.state !== TESTING && !Object.keys(specialEventTimeouts).length) || store.pendingTestGroupPath) {
     return
   }
 
@@ -545,48 +551,52 @@ const specialEventSimulator = {
   input: ({ targetSelector, value }) => {
     const element = document.querySelector(targetSelector)
 
-    if (element && !specialEventTimeouts.input) {
+    if (element) {
       // TODO is there a better way?
       if (element.value === value && element.getAttribute(`value`) === value) {
         return element
       }
 
-      specialEventTimeouts.input = setTimeout(() => {
-        window.requestAnimationFrame(() => {
-          element.value = value
-          element.setAttribute(`value`, value)
+      if (!specialEventTimeouts.input) {
+        specialEventTimeouts.input = setTimeout(() => {
+          window.requestAnimationFrame(() => {
+            element.value = value
+            element.setAttribute(`value`, value)
 
-          specialEventTimeouts.input = setTimeout(() => {
-            window.requestAnimationFrame(() => {
-              delete specialEventTimeouts.input
-            })
-          }, 1)
-        })
-      }, store.data.delays.events.input || 0)
+            specialEventTimeouts.input = setTimeout(() => {
+              window.requestAnimationFrame(() => {
+                delete specialEventTimeouts.input
+              })
+            }, 1)
+          })
+        }, store.data.delays.events.input || 0)
+      }
     }
   },
 
   change: ({ targetSelector, value }) => {
     const element = document.querySelector(targetSelector)
 
-    if (element && !specialEventTimeouts.change) {
+    if (element) {
       // TODO is there a better way?
       if (element.value === value && element.getAttribute(`value`) === value) {
         return element
       }
 
-      specialEventTimeouts.change = setTimeout(() => {
-        window.requestAnimationFrame(() => {
-          element.value = value
-          element.setAttribute(`value`, value)
+      if (!specialEventTimeouts.change) {
+        specialEventTimeouts.change = setTimeout(() => {
+          window.requestAnimationFrame(() => {
+            element.value = value
+            element.setAttribute(`value`, value)
 
-          specialEventTimeouts.change = setTimeout(() => {
-            window.requestAnimationFrame(() => {
-              delete specialEventTimeouts.change
-            })
-          }, 1)
-        })
-      }, store.data.delays.events.change || 0)
+            specialEventTimeouts.change = setTimeout(() => {
+              window.requestAnimationFrame(() => {
+                delete specialEventTimeouts.change
+              })
+            }, 1)
+          })
+        }, store.data.delays.events.change || 0)
+      }
     }
   }
 }
@@ -886,10 +896,6 @@ const sendFrameTestResults = () => {
  * @param {object} updates
  */
 const handleFrameTestResult = updates => {
-  if (store.state !== TESTING) {
-    return
-  }
-
   let { state, testGroupIndex, testIndex, frameIndex } = store
   const { allTestGroups, allTests } = store
 
@@ -936,9 +942,6 @@ const handleFrameTestResult = updates => {
 
   const stopTesting = () => {
     state = IDLE
-    testGroupIndex = -1
-    testIndex = -1
-    frameIndex = -1
   }
 
   frames[frameIndex] = frame
@@ -1007,7 +1010,10 @@ const handleFrameTestResult = updates => {
     stopTesting()
   }
 
-  store.bufferedFrameTestResults.state = state
+  if (state !== store.state) {
+    store.bufferedFrameTestResults.state = state
+  }
+
   store.bufferedFrameTestResults.testGroupIndex = testGroupIndex
   store.bufferedFrameTestResults.testIndex = testIndex
   store.bufferedFrameTestResults.frameIndex = frameIndex

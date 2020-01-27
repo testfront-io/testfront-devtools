@@ -38,7 +38,7 @@ const Provider = ({ children }) => {
     isConfigured: false,
     isInitialized: false,
     shouldSaveData: false,
-    shouldUpdateContentStore: false,
+    updateContentStoreKeys: [],
 
     config: {
       source: `server`,
@@ -155,7 +155,16 @@ const Provider = ({ children }) => {
           case `initializeContentStore`:
             store.updateStore(store => ({
               ...(message.updates || {}),
-              shouldUpdateContentStore: true
+
+              updateContentStoreKeys: [
+                `state`,
+                `testGroupIndex`,
+                `testIndex`,
+                `frameIndex`,
+                `allTestGroups`,
+                `allTests`,
+                `data`
+              ]
             }))
           break
 
@@ -242,7 +251,7 @@ const Provider = ({ children }) => {
         setStore(store => ({
           ...store,
           ...updates,
-          shouldUpdateContentStore: true
+          updateContentStoreKeys: store.updateContentStoreKeys.concat(`data`)
         }))
       }
 
@@ -337,26 +346,27 @@ const Provider = ({ children }) => {
     }),
 
     updateContentStore: () => setStore(store => {
-      store = {
-        ...store,
-        shouldUpdateContentStore: false
+      const { updateContentStoreKeys } = store
+
+      if (!updateContentStoreKeys.length) {
+        return store
+      }
+
+      const updates = {}
+
+      for (let key of updateContentStoreKeys) {
+        updates[key] = store[key]
       }
 
       store.tab.sendMessage({
         command: `updateStore`,
-        updates: {
-          state: store.state,
-
-          testGroupIndex: store.testGroupIndex,
-          testIndex: store.testIndex,
-          frameIndex: store.frameIndex,
-
-          allTestGroups: store.allTestGroups,
-          allTests: store.allTests,
-
-          data: store.data
-        }
+        updates
       })
+
+      store = {
+        ...store,
+        updateContentStoreKeys: []
+      }
 
       return store
     }),
@@ -371,24 +381,23 @@ const Provider = ({ children }) => {
 
     startRecording: ({ testGroupIndex, testIndex, frameIndex = -1 }) => store.updateStore(store => {
       const updates = {
-        shouldUpdateContentStore: true,
         state: RECORDING,
         testGroupIndex,
         testIndex,
         frameIndex
       }
 
+      updates.updateContentStoreKeys = store.updateContentStoreKeys.concat(Object.keys(updates))
+
       return updates
     }),
 
     stopRecording: () => store.updateStore(store => {
       const updates = {
-        shouldUpdateContentStore: true,
-        state: IDLE,
-        testGroupIndex: -1,
-        testIndex: -1,
-        frameIndex: -1
+        state: IDLE
       }
+
+      updates.updateContentStoreKeys = store.updateContentStoreKeys.concat(Object.keys(updates))
 
       return updates
     }),
@@ -398,7 +407,6 @@ const Provider = ({ children }) => {
       let testGroupsChanged = false
 
       const updates = {
-        shouldUpdateContentStore: true,
         state: TESTING,
 
         testGroupIndex,
@@ -413,6 +421,8 @@ const Provider = ({ children }) => {
           testGroups
         }
       }
+
+      updates.updateContentStoreKeys = store.updateContentStoreKeys.concat(Object.keys(updates))
 
       for (let testGroup = null; testGroupIndex < testGroups.length; testGroupIndex++) {
         testGroup = { ...testGroups[testGroupIndex] }
@@ -479,12 +489,10 @@ const Provider = ({ children }) => {
 
     stopTesting: () => store.updateStore(store => {
       const updates = {
-        shouldUpdateContentStore: true,
-        state: IDLE,
-        testGroupIndex: -1,
-        testIndex: -1,
-        frameIndex: -1
+        state: IDLE
       }
+
+      updates.updateContentStoreKeys = store.updateContentStoreKeys.concat(Object.keys(updates))
 
       return updates
     }),
@@ -796,10 +804,6 @@ const Provider = ({ children }) => {
       const { testGroups: bufferedTestGroups, ...bufferedDataUpdates } = bufferedData
 
       store.updateStore(store => {
-        if (store.state !== TESTING) {
-          return
-        }
-
         const testGroups = [ ...store.data.testGroups ]
 
         const updates = {
@@ -853,14 +857,12 @@ const Provider = ({ children }) => {
         return
       }
 
-      if (store.shouldUpdateContentStore) {
-        store.updateContentStore()
-      }
-
       if (store.shouldSaveData) {
         clearTimeout(timeouts.saveData)
         timeouts.saveData = setTimeout(() => store.saveData(), store.data.timeLimits.saveData || 0)
       }
+
+      store.updateContentStore()
     }
   }, [ store, timeouts ])
 
