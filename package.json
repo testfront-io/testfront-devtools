@@ -5,23 +5,23 @@
   "author": "testfront.io",
   "license": "MIT",
   "dependencies": {
-    "axios": "^0.19.0",
-    "diff-match-patch": "^1.0.4",
+    "axios": "^0.21.1",
+    "diff-match-patch": "^1.0.5",
     "octicons": "^8.5.0",
-    "polished": "^3.4.1",
-    "react": "^16.9.0",
-    "react-dom": "^16.9.0",
-    "react-router-dom": "^5.0.1",
-    "react-scripts": "^3.3.0",
+    "polished": "^3.7.1",
+    "react": "^16.14.0",
+    "react-dom": "^16.14.0",
+    "react-router-dom": "^5.2.0",
+    "react-scripts": "^3.4.4",
     "styled-components": "^4.4.0"
   },
   "devDependencies": {
     "archiver": "^3.1.1",
     "cross-env": "^6.0.3",
     "eslint": "^6.5.1",
-    "eslint-plugin-react-app": "^6.0.3",
+    "eslint-plugin-react-app": "^6.2.2",
     "fs-extra": "^8.1.0",
-    "typescript": "^3.7.2"
+    "typescript": "^3.9.9"
   },
   "scripts": {
     "start": "react-scripts start",
