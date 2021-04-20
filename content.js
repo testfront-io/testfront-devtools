@@ -191,6 +191,10 @@ const getTargetSelector = (element) => {
   while (element.parentNode !== null) {
     targetSelector.unshift(getSimplestElementSelector(element))
 
+    if (targetSelector[0][0] === `#`) {
+      break
+    }
+
     element = element.parentNode
 
     if (snapshotContainer && element === snapshotContainer) {
@@ -208,12 +212,18 @@ const getTargetSelector = (element) => {
  * @param {array} attributes
  * @returns {string}
  */
-const getSimplestElementSelector = (element, attributes = [`name`, `placeholder`]) => {
-  if (element.id) {
+const getSimplestElementSelector = (element, attributes = [`name`, `placeholder`, `role`]) => {
+  if (element.id && !/[0-9]/.test(element.id)) {
     return `#${element.id}`
   }
 
   let elementSelector = ``
+
+  elementSelector = element.nodeName.toLowerCase()
+
+  if (element.parentNode.querySelector(elementSelector) === element) {
+    return elementSelector
+  }
 
   for (let attribute of attributes) {
     if (element.getAttribute(attribute)) {
@@ -227,12 +237,6 @@ const getSimplestElementSelector = (element, attributes = [`name`, `placeholder`
         return elementSelector
       }
     }
-  }
-
-  elementSelector = element.nodeName.toLowerCase()
-
-  if (element.parentNode.querySelector(elementSelector) === element) {
-    return elementSelector
   }
 
   let i = 0
