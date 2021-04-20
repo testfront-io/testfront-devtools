@@ -12,7 +12,7 @@ chrome.runtime.onConnect.addListener((devToolConnection) => {
       case `initialize`:
         tabId = message.tabId
         devToolConnections[tabId] = devToolConnection
-        chrome.tabs.executeScript(tabId, { file: `content.js` })
+        chrome.tabs.executeScript(tabId, { code: `initializeStore()` })
       return
 
       default:

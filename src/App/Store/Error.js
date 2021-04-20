@@ -64,6 +64,7 @@ const Error = styled(({ store, ...props }) => {
       <center>
         <UI.Button onClick={() => {
           store.updateStore(store => ({
+            error: ``,
             config: {
               ...store.config,
               source: `local`

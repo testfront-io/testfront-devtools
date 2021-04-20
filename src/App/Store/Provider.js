@@ -384,7 +384,10 @@ const Provider = ({ children }) => {
         state: RECORDING,
         testGroupIndex,
         testIndex,
-        frameIndex
+        frameIndex,
+        data: {
+          testGroups: [ ...store.data.testGroups ]
+        }
       }
 
       updates.updateContentStoreKeys = store.updateContentStoreKeys.concat(Object.keys(updates))
@@ -851,7 +854,7 @@ const Provider = ({ children }) => {
       store.initializeLocation()
     } else if (!store.isConfigured) {
       store.configure(store)
-    } else if (store.status === `` && !store.error) {
+    } else if (store.status === ``) {
       if (!store.isInitialized) {
         store.fetchData()
         return
