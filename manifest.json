@@ -1,6 +1,6 @@
 {
   "name": "TestFront.io DevTools",
-  "version": "1.0",
+  "version": "1.0.1",
   "manifest_version": 2,
   "minimum_chrome_version": "60.0",
   "description": "Create end-to-end tests without code.",
