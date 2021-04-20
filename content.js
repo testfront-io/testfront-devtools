@@ -184,12 +184,7 @@ const getTargetSelector = (element) => {
   const testGroup = testGroups[testGroupIndex]
   const tests = testGroup && testGroup.tests
   const test = tests && tests[testIndex]
-  const snapshotSelector = test && test.snapshotSelector
-
-  if (!snapshotSelector) {
-    return
-  }
-
+  const snapshotSelector = (test && test.snapshotSelector) || `html`
   const snapshotContainer = document.querySelector(snapshotSelector)
   const targetSelector = []
 
@@ -758,7 +753,7 @@ const getSnapshotHtml = () => {
   const tests = testGroup && testGroup.tests
   const test = tests && tests[testIndex]
   const snapshotSelector = test && test.snapshotSelector
-  const snapshotContainer = snapshotSelector && document.querySelector(snapshotSelector)
+  const snapshotContainer = snapshotSelector ? document.querySelector(snapshotSelector) : null
 
   return snapshotContainer && snapshotContainer.innerHTML
 }

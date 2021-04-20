@@ -117,7 +117,7 @@ const Test = styled(({ store, testGroupIndex, testGroup, testIndex, test, ...pro
 
         <UI.Input
           placeholder='Snapshot Selector'
-          value={test.snapshotSelector || `html`}
+          value={test.snapshotSelector || ``}
           onKeyUp={event => {
             if (event.key === `Enter` || event.key === `Escape`) {
               event.target.blur()

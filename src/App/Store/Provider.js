@@ -554,7 +554,7 @@ const Provider = ({ children }) => {
                 {
                   state: UNTESTED,
                   description: ``,
-                  snapshotSelector: (lastTest && lastTest.snapshotSelector) || `html`,
+                  snapshotSelector: (lastTest && lastTest.snapshotSelector) || ``,
                   snapshotFilters: [].concat((lastTest && lastTest.snapshotFilters) || []),
                   eventTypes: (lastTest && lastTest.eventTypes) || [
                     `reload`,
